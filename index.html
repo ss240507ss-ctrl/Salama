@@ -1,1083 +1,387 @@
-import React, { useState } from 'react';
-import { User, Mic, Keyboard, Users } from 'lucide-react';
-
-const SalamaApp = () => {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [selectedMood, setSelectedMood] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [showRecordings, setShowRecordings] = useState(false);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const [selectedCaregiver, setSelectedCaregiver] = useState(null);
-  const [sosPressed, setSosPressed] = useState(false);
-  const [okPressed, setOkPressed] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [chatWith, setChatWith] = useState(null);
-  const [showCommunities, setShowCommunities] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { text: "Hi! How are you today?", sender: "them", time: "10:30 AM" },
-    { text: "I'm doing well, thanks for checking in!", sender: "me", time: "10:32 AM" },
-    { text: "Remember to take your medication at 2pm", sender: "them", time: "10:35 AM" },
-    { text: "Will do, thank you!", sender: "me", time: "10:36 AM" }
-  ]);
-  const [messageInput, setMessageInput] = useState('');
-  const [showProtectionChat, setShowProtectionChat] = useState(false);
-  const [protectionMessages, setProtectionMessages] = useState([]);
-  const [protectionInput, setProtectionInput] = useState('');
-  const [isAIThinking, setIsAIThinking] = useState(false);
-  const [backgroundMonitoring, setBackgroundMonitoring] = useState(true);
-  const [monitoringAlerts, setMonitoringAlerts] = useState([]);
-  const [salamaActive, setSalamaActive] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [salamaInput, setSalamaInput] = useState('');
-  const [salamaConversation, setSalamaConversation] = useState([]);
-
-  const moods = [
-    { emoji: '😡', color: 'bg-red-500', label: 'Very Bad' },
-    { emoji: '😟', color: 'bg-orange-500', label: 'Bad' },
-    { emoji: '😐', color: 'bg-yellow-500', label: 'Okay' },
-    { emoji: '🙂', color: 'bg-lime-500', label: 'Good' },
-    { emoji: '😊', color: 'bg-green-500', label: 'Great' }
-  ];
-
-  const recordings = [
-    'Recording 1 - Today 10:00 AM',
-    'Recording 2 - Yesterday 3:00 PM',
-    'Recording 3 - Jan 28 9:00 AM'
-  ];
-
-  const homeCards = [
-    {
-      title: 'Medication 💊',
-      items: [
-        'Med 1 - 8:00',
-        'Med 2 - 8:00 & 19:00',
-        'Med 3 - 11:00'
-      ]
-    },
-    {
-      title: 'Appointments 📅',
-      items: [
-        'Dr. Smith - 14:00',
-        'Physical Therapy - 16:00'
-      ]
-    },
-    {
-      title: 'Exercise 🏃',
-      items: [
-        'Morning Walk - Completed',
-        'Stretching - Pending'
-      ]
-    }
-  ];
-
-  const careNotesCards = [
-    {
-      title: 'Documents 📁',
-      items: [
-        'Test Results',
-        'Lab Reports',
-        'X-Rays',
-        'MRIs'
-      ],
-      preview: true
-    },
-    {
-      title: 'Prescriptions 💊',
-      items: [
-        'Blood Pressure Meds',
-        'Diabetes Medication',
-        'Vitamins'
-      ],
-      preview: true
-    },
-    {
-      title: 'Other Expenses 💰',
-      items: [
-        'Salaries',
-        'Diapers',
-        'Medical Supplies',
-        'Transportation',
-        'Utilities'
-      ],
-      preview: false
-    }
-  ];
-
-  const quickTexts = [
-    'I fell',
-    'Mistreated',
-    'I feel sick',
-    'I need to go to the hospital',
-    '(Any other customisable message e.g. a code word)'
-  ];
-
-  const caregivers = [
-    { label: 'Primary Care-Giver', id: 1, name: 'Sarah Johnson' },
-    { label: 'Secondary Care-Giver', id: 2, name: 'Michael Chen' },
-    { label: 'Tertiary Care-Giver', id: 3, name: 'Emma Davis' },
-    { label: 'Care-Giver 4', id: 4, name: 'David Wilson' },
-    { label: 'Care-Giver 5', id: 5, name: 'Lisa Martinez' }
-  ];
-
-  const communities = [
-    { id: 'internal', name: 'Internal (Caregivers)', icon: '👨‍👩‍👧‍👦' },
-    { id: 'group1', name: 'External (Elderly Group 1)', icon: '👴👵' },
-    { id: 'group2', name: 'External (Elderly Group 2)', icon: '👴👵' },
-    { id: 'group3', name: 'External (Elderly Group 3)', icon: '👴👵' }
-  ];
-
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Salama">
+    <title>Salama - AI Care Companion</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d9488">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
     
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    if (isLeftSwipe || isRightSwipe) {
-      handleSwipe();
-    }
-  };
-
-  const handleSwipe = () => {
-    if (currentPage === 'home') {
-      setCurrentCardIndex((prev) => (prev + 1) % homeCards.length);
-    } else if (currentPage === 'carenotes') {
-      setCurrentCardIndex((prev) => (prev + 1) % careNotesCards.length);
-    }
-  };
-
-  const sendMessage = () => {
-    if (messageInput.trim()) {
-      setChatMessages([...chatMessages, {
-        text: messageInput,
-        sender: "me",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
-      setMessageInput('');
-    }
-  };
-
-  const askSalama = async (question) => {
-    const userMessage = {
-      text: question,
-      sender: "me",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    setProtectionMessages(prev => [...prev, userMessage]);
-    setProtectionInput('');
-    setIsAIThinking(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      let aiResponse = '';
-      const lowerQuestion = question.toLowerCase();
-      
-      if (lowerQuestion.includes('call') || lowerQuestion.includes('phone') || lowerQuestion.includes('scam')) {
-        aiResponse = "I've analyzed this situation. This appears to be a potential scam. Legitimate organizations don't ask for personal information over unsolicited calls. I recommend:\n\n1. Don't share any personal or financial information\n2. Hang up and call the organization directly using their official number\n3. I've notified your caregivers about this interaction\n\nYou're safe. Would you like me to help with anything else?";
-      } else if (lowerQuestion.includes('message') || lowerQuestion.includes('text') || lowerQuestion.includes('email')) {
-        aiResponse = "Let me check this message for you. Based on my analysis, this shows signs of a phishing attempt. Red flags include:\n\n• Urgent language pressuring you to act quickly\n• Requests for personal information\n• Suspicious sender address\n\nI recommend deleting this message and not clicking any links. Your caregivers have been notified. Is there anything else concerning you?";
-      } else if (lowerQuestion.includes('person') || lowerQuestion.includes('stranger') || lowerQuestion.includes('door')) {
-        aiResponse = "I understand you're concerned about someone at your door. For your safety:\n\n1. Don't open the door if you're unsure\n2. Ask for identification through the door\n3. Verify their identity by calling the company they claim to represent\n4. I've alerted your primary caregiver\n\nYou did the right thing by checking with me. Stay inside and wait for confirmation. Should I send an immediate alert?";
-      } else {
-        aiResponse = "I'm here to help you stay safe. Can you tell me more details about what's concerning you? For example:\n\n• Is it a phone call, message, or person?\n• What are they asking you to do?\n• Do you feel pressured or threatened?\n\nThe more details you share, the better I can help protect you.";
-      }
-
-      const salamaMessage = {
-        text: aiResponse,
-        sender: "salama",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      
-      setProtectionMessages(prev => [...prev, salamaMessage]);
-      setIsAIThinking(false);
-    }, 2000);
-  };
-
-  const talkToSalama = async (question) => {
-    const userMessage = {
-      text: question,
-      sender: "me",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    setSalamaConversation(prev => [...prev, userMessage]);
-    setSalamaInput('');
-    setIsListening(false);
-    setIsAIThinking(true);
-
-    // Simulate AI response with more conversational, JARVIS-like responses
-    setTimeout(() => {
-      let aiResponse = '';
-      const lowerQuestion = question.toLowerCase();
-      
-      // Greetings
-      if (lowerQuestion.includes('hello') || lowerQuestion.includes('hi') || lowerQuestion.includes('hey')) {
-        aiResponse = "Hello! It's wonderful to hear from you. I hope you're having a pleasant day. How can I assist you right now?";
-      }
-      // Weather
-      else if (lowerQuestion.includes('weather')) {
-        aiResponse = "Let me check the weather for you. It's currently 72°F and sunny with clear skies. Perfect weather for a gentle walk if you're feeling up to it. The forecast shows it will stay pleasant throughout the day. Would you like me to remind you to take a walk later?";
-      }
-      // News
-      else if (lowerQuestion.includes('news') || lowerQuestion.includes('today')) {
-        aiResponse = "Of course. Here are today's top stories:\n\n• Markets are showing positive movement today\n• The local community center is hosting a seniors' event on Saturday\n• There's a feel-good story about a therapy dog program at the nearby hospital\n\nWould you like me to tell you more about any of these stories?";
-      }
-      // How are you
-      else if (lowerQuestion.includes('how are you')) {
-        aiResponse = "I'm functioning perfectly, thank you for asking. More importantly, how are YOU feeling today? I noticed your check-in this morning showed you were doing well. Is there anything I can help you with?";
-      }
-      // Medication
-      else if (lowerQuestion.includes('medication') || lowerQuestion.includes('medicine') || lowerQuestion.includes('pills')) {
-        aiResponse = "Let me check your medication schedule. You have three medications due today:\n\n• Med 1 at 8:00 AM - Already taken ✓\n• Med 2 at 8:00 AM and 7:00 PM - Morning dose taken ✓\n• Med 3 at 11:00 AM - Coming up in 30 minutes\n\nI'll remind you when it's time. Is there anything about your medications you'd like to discuss?";
-      }
-      // Family/caregivers
-      else if (lowerQuestion.includes('family') || lowerQuestion.includes('sarah') || lowerQuestion.includes('caregiver')) {
-        aiResponse = "Your primary caregiver Sarah checked in this morning and asked how you were doing. Would you like me to send her a message? I can let her know you'd like to chat, or if there's anything specific you'd like me to tell her.";
-      }
-      // Appointments
-      else if (lowerQuestion.includes('appointment') || lowerQuestion.includes('doctor') || lowerQuestion.includes('schedule')) {
-        aiResponse = "Let me check your upcoming appointments. You have a doctor's appointment with Dr. Smith tomorrow at 2:00 PM. Sarah will be taking you. Would you like me to remind you in the morning to prepare any questions you have for the doctor?";
-      }
-      // Feeling lonely/sad
-      else if (lowerQuestion.includes('lonely') || lowerQuestion.includes('sad') || lowerQuestion.includes('bored')) {
-        aiResponse = "I'm sorry you're feeling this way. You're not alone - I'm right here with you. Would you like me to:\n\n• Call one of your caregivers to chat?\n• Show you some happy memories from your photo collection?\n• Connect you to your community group chat?\n• Play some of your favorite music?\n\nWhat sounds good to you?";
-      }
-      // Help/emergency
-      else if (lowerQuestion.includes('help') || lowerQuestion.includes('emergency') || lowerQuestion.includes('not feeling well')) {
-        aiResponse = "I'm here to help. Can you tell me what's wrong? Are you:\n\n• Feeling pain or discomfort?\n• Having trouble breathing?\n• Feeling dizzy or faint?\n• Need immediate medical attention?\n\nIf this is an emergency, I can alert your caregivers and emergency services right now. Just say the word.";
-      }
-      // Thank you
-      else if (lowerQuestion.includes('thank')) {
-        aiResponse = "You're very welcome. It's my pleasure to help you. I'm always here whenever you need me - day or night. Is there anything else I can do for you?";
-      }
-      // Tell me a story/joke
-      else if (lowerQuestion.includes('story') || lowerQuestion.includes('joke') || lowerQuestion.includes('funny')) {
-        aiResponse = "I'd be delighted to! Here's a gentle joke for you:\n\nWhy don't scientists trust atoms?\n\nBecause they make up everything!\n\nDid that bring a smile? I have more if you'd like. Or I could share some interesting facts about topics you enjoy instead.";
-      }
-      // Scam/protection
-      else if (lowerQuestion.includes('scam') || lowerQuestion.includes('suspicious') || lowerQuestion.includes('safe')) {
-        aiResponse = "I'm glad you came to me with this. Your safety is my top priority. Tell me what happened - was it a phone call, message, email, or person at your door? Take your time and give me as many details as you can remember. I'll help you figure out if it's legitimate or something to be concerned about.";
-      }
-      // General conversation
-      else {
-        aiResponse = "I'm listening. Could you tell me a bit more about that? I want to make sure I understand properly so I can help you in the best way possible. You can ask me about:\n\n• Your health and medications\n• Weather and news\n• Contacting family or caregivers\n• Your schedule and appointments\n• Safety concerns\n• Or just chat - I'm here to keep you company";
-      }
-
-      const salamaMessage = {
-        text: aiResponse,
-        sender: "salama",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      
-      setSalamaConversation(prev => [...prev, salamaMessage]);
-      setIsAIThinking(false);
-    }, 2000);
-  };
-
-  const renderNavBar = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 px-2 z-50">
-      {[
-        { id: 'home', label: 'Home', icon: '🏠' },
-        { id: 'checkin', label: 'Check-In', icon: '📝' },
-        { id: 'carenotes', label: 'Care Notes', icon: '📋' },
-        { id: 'safety', label: 'Safety', icon: '🛡️' },
-        { id: 'carecircle', label: 'Care-Circle', icon: '👥' }
-      ].map((item) => (
-        <button
-          key={item.id}
-          onClick={() => {
-            setCurrentPage(item.id);
-            setCurrentCardIndex(0);
-          }}
-          className="flex flex-col items-center"
-        >
-          <span className="text-2xl mb-1">{item.icon}</span>
-          <span className={`text-xs ${currentPage === item.id ? 'text-teal-700 font-semibold' : 'text-teal-600'}`}>
-            {item.label}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderHeader = (title) => (
-    <div className="flex justify-between items-center mb-8">
-      <button 
-        onClick={() => setShowSidebar(!showSidebar)}
-        className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center hover:bg-white/20 transition-colors"
-      >
-        <User className="w-8 h-8 text-white" />
-      </button>
-      <h1 className="text-4xl font-serif text-white">{title}</h1>
-      <button 
-        onClick={() => {
-          setSosPressed(true);
-          setTimeout(() => setSosPressed(false), 300);
-          alert('🚨 SOS ALERT SENT! Emergency contacts notified.');
-        }}
-        className={`w-20 h-20 rounded-3xl bg-red-500 flex items-center justify-center transition-all ${sosPressed ? 'scale-95 animate-pulse' : 'hover:scale-105'}`}
-      >
-        <span className="text-white text-3xl font-bold">SOS</span>
-      </button>
-    </div>
-  );
-
-  const renderSwipeCard = (card) => {
-    const totalCards = currentPage === 'home' ? homeCards.length : careNotesCards.length;
-    
-    return (
-      <div className="relative">
-        <div 
-          className="bg-gradient-to-b from-white to-gray-100 rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4 touch-pan-y"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
-          <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
-            <h3 className="text-2xl font-serif text-black">{card.title}</h3>
-            <span className="text-sm text-gray-600">{currentCardIndex + 1}/{totalCards}</span>
-          </div>
-          
-          <div className="mb-8 min-h-[200px]">
-            {card.items.map((item, idx) => (
-              <p key={idx} className="text-xl text-black mb-2">{idx + 1}. {item}</p>
-            ))}
-          </div>
-
-          {card.preview && (
-            <div className="mb-8">
-              <h4 className="text-2xl font-serif text-black text-center mb-4">Preview</h4>
-              <div className="w-48 h-48 mx-auto border-4 border-black rounded-lg bg-white flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full border-4 border-black mx-auto mb-2"></div>
-                  <div className="w-24 h-1 bg-black mx-auto mb-1"></div>
-                  <div className="w-20 h-1 bg-black mx-auto"></div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-center items-center gap-8 mt-8">
-            <button 
-              onClick={() => {
-                const total = currentPage === 'home' ? homeCards.length : careNotesCards.length;
-                setCurrentCardIndex((prev) => (prev - 1 + total) % total);
-              }}
-              className="flex items-center gap-2 hover:scale-110 transition-transform"
-            >
-              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-            </button>
-            
-            <button 
-              onClick={handleSwipe}
-              className="flex items-center gap-2 hover:scale-110 transition-transform"
-            >
-              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+    <script type="text/babel">
+        const { useState } = React;
         
-        {/* Swipe indicator dots */}
-        <div className="flex justify-center gap-2 mb-4">
-          {Array.from({ length: totalCards }).map((_, idx) => (
-            <div
-              key={idx}
-              className={`w-3 h-3 rounded-full ${idx === currentCardIndex ? 'bg-white' : 'bg-white/40'}`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+        const User = ({className}) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        );
+        
+        const Mic = ({className}) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+        );
+        
+        const Keyboard = ({className}) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"></path>
+            </svg>
+        );
+        
+        const Users = ({className}) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
 
-  return (
-    <div className="w-full min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 pb-24 relative">
-      {/* Voice Activation Button - Floating */}
-      <button
-        onClick={() => {
-          setSalamaActive(true);
-          setSalamaConversation([{
-            text: "Hello, I'm Salama. I'm here to help you with anything you need. You can ask me about the weather, news, your medications, or just chat. What would you like to talk about?",
-            sender: "salama",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
-        }}
-        className="fixed bottom-32 right-6 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg z-40 flex items-center justify-center hover:scale-105 transition-transform"
-      >
-        <span className="text-2xl">🤖</span>
-      </button>
+        const SalamaApp = () => {
+          const [currentPage, setCurrentPage] = useState('home');
+          const [currentCardIndex, setCurrentCardIndex] = useState(0);
+          const [selectedMood, setSelectedMood] = useState(null);
+          const [isRecording, setIsRecording] = useState(false);
+          const [showRecordings, setShowRecordings] = useState(false);
+          const [touchStart, setTouchStart] = useState(null);
+          const [touchEnd, setTouchEnd] = useState(null);
+          const [selectedCaregiver, setSelectedCaregiver] = useState(null);
+          const [sosPressed, setSosPressed] = useState(false);
+          const [okPressed, setOkPressed] = useState(false);
+          const [showSidebar, setShowSidebar] = useState(false);
+          const [chatWith, setChatWith] = useState(null);
+          const [showCommunities, setShowCommunities] = useState(false);
+          const [chatMessages, setChatMessages] = useState([
+            { text: "Hi! How are you today?", sender: "them", time: "10:30 AM" },
+            { text: "I'm doing well, thanks for checking in!", sender: "me", time: "10:32 AM" }
+          ]);
+          const [messageInput, setMessageInput] = useState('');
+          const [showProtectionChat, setShowProtectionChat] = useState(false);
+          const [protectionMessages, setProtectionMessages] = useState([]);
+          const [protectionInput, setProtectionInput] = useState('');
+          const [isAIThinking, setIsAIThinking] = useState(false);
+          const [backgroundMonitoring, setBackgroundMonitoring] = useState(true);
+          const [monitoringAlerts, setMonitoringAlerts] = useState([]);
+          const [salamaActive, setSalamaActive] = useState(false);
+          const [isListening, setIsListening] = useState(false);
+          const [salamaInput, setSalamaInput] = useState('');
+          const [salamaConversation, setSalamaConversation] = useState([]);
 
-      {/* Main Salama Interface */}
-      {salamaActive && (
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-purple-700 to-indigo-900 z-50 flex flex-col">
-          {/* Header */}
-          <div className="p-6 flex items-center gap-4 border-b border-white/30">
-            <button 
-              onClick={() => setSalamaActive(false)}
-              className="text-white text-3xl"
-            >
-              ✕
-            </button>
-            <div className="flex-1 flex items-center justify-center gap-3">
-              <div className={`w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center ${isListening ? 'animate-pulse scale-110' : ''} transition-all`}>
-                <span className="text-4xl">🤖</span>
-              </div>
-              <div className="text-center">
-                <h2 className="text-3xl font-serif text-white">Salama</h2>
-                <p className="text-sm text-white/80">
-                  {isListening ? '🎙️ Listening...' : isAIThinking ? '💭 Thinking...' : '✨ Your AI Companion'}
-                </p>
-              </div>
-            </div>
-          </div>
+          const moods = [
+            { emoji: '😡', color: 'bg-red-500' },
+            { emoji: '😟', color: 'bg-orange-500' },
+            { emoji: '😐', color: 'bg-yellow-500' },
+            { emoji: '🙂', color: 'bg-lime-500' },
+            { emoji: '😊', color: 'bg-green-500' }
+          ];
 
-          {/* Conversation Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {salamaConversation.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-3xl p-5 ${msg.sender === 'me' ? 'bg-indigo-600' : 'bg-gradient-to-br from-purple-600 to-purple-500'} shadow-lg`}>
-                  {msg.sender === 'salama' && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">🤖</span>
-                      <span className="text-white font-semibold">Salama</span>
+          const homeCards = [
+            { title: 'Medication 💊', items: ['Med 1 - 8:00', 'Med 2 - 8:00 & 19:00', 'Med 3 - 11:00'] },
+            { title: 'Appointments 📅', items: ['Dr. Smith - 14:00', 'Physical Therapy - 16:00'] }
+          ];
+
+          const careNotesCards = [
+            { title: 'Documents 📁', items: ['Test Results', 'Lab Reports', 'X-Rays', 'MRIs'], preview: true },
+            { title: 'Other Expenses 💰', items: ['Salaries', 'Diapers', 'Medical Supplies'], preview: false }
+          ];
+
+          const caregivers = [
+            { label: 'Primary Care-Giver', id: 1, name: 'Sarah Johnson' },
+            { label: 'Secondary Care-Giver', id: 2, name: 'Michael Chen' },
+            { label: 'Tertiary Care-Giver', id: 3, name: 'Emma Davis' },
+            { label: 'Care-Giver 4', id: 4, name: 'David Wilson' },
+            { label: 'Care-Giver 5', id: 5, name: 'Lisa Martinez' }
+          ];
+
+          const communities = [
+            { id: 'internal', name: 'Internal (Caregivers)' },
+            { id: 'group1', name: 'External (Elderly Group 1)' },
+            { id: 'group2', name: 'External (Elderly Group 2)' },
+            { id: 'group3', name: 'External (Elderly Group 3)' }
+          ];
+
+          const sendMessage = () => {
+            if (messageInput.trim()) {
+              setChatMessages([...chatMessages, {
+                text: messageInput,
+                sender: "me",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+              setMessageInput('');
+            }
+          };
+
+          const askSalama = async (question) => {
+            setProtectionMessages(prev => [...prev, {
+              text: question,
+              sender: "me",
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+            setProtectionInput('');
+            setIsAIThinking(true);
+
+            setTimeout(() => {
+              let response = "I'm here to help you stay safe. Tell me more details about what's concerning you.";
+              if (question.toLowerCase().includes('call') || question.toLowerCase().includes('scam')) {
+                response = "This appears to be a potential scam. Don't share personal information. I've notified your caregivers.";
+              }
+              
+              setProtectionMessages(prev => [...prev, {
+                text: response,
+                sender: "salama",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+              setIsAIThinking(false);
+            }, 2000);
+          };
+
+          const talkToSalama = async (question) => {
+            setSalamaConversation(prev => [...prev, {
+              text: question,
+              sender: "me",
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+            setSalamaInput('');
+            setIsListening(false);
+            setIsAIThinking(true);
+
+            setTimeout(() => {
+              let response = "I'm listening. How can I help you?";
+              const lq = question.toLowerCase();
+              
+              if (lq.includes('weather')) response = "It's 72°F and sunny today. Perfect for a walk!";
+              else if (lq.includes('news')) response = "Here are today's top stories: Markets are positive, and there's a seniors event at the community center Saturday.";
+              else if (lq.includes('medication')) response = "You have Med 1 at 8:00 AM, Med 2 at 8:00 AM & 7:00 PM, and Med 3 at 11:00 AM today.";
+              else if (lq.includes('joke')) response = "Why don't scientists trust atoms? Because they make up everything! 😊";
+              
+              setSalamaConversation(prev => [...prev, {
+                text: response,
+                sender: "salama",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+              setIsAIThinking(false);
+            }, 2000);
+          };
+
+          const handleSwipe = () => {
+            if (currentPage === 'home') {
+              setCurrentCardIndex((prev) => (prev + 1) % homeCards.length);
+            } else if (currentPage === 'carenotes') {
+              setCurrentCardIndex((prev) => (prev + 1) % careNotesCards.length);
+            }
+          };
+
+          const renderSwipeCard = (card) => {
+            const totalCards = currentPage === 'home' ? homeCards.length : careNotesCards.length;
+            
+            return (
+              <div className="relative">
+                <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                  <div className="mb-6 pb-4 border-b-4 border-teal-700">
+                    <h3 className="text-2xl font-serif text-black">{card.title}</h3>
+                  </div>
+                  <div className="mb-8">
+                    {card.items.map((item, idx) => (
+                      <p key={idx} className="text-xl text-black mb-2">{idx + 1}. {item}</p>
+                    ))}
+                  </div>
+                  {card.preview && (
+                    <div className="mb-8">
+                      <div className="w-48 h-48 mx-auto border-4 border-black rounded-lg bg-white flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full border-4 border-black"></div>
+                      </div>
                     </div>
                   )}
-                  <p className="text-white text-xl leading-relaxed whitespace-pre-line">{msg.text}</p>
-                  <span className="text-white/60 text-sm mt-2 block">{msg.time}</span>
-                </div>
-              </div>
-            ))}
-            
-            {isAIThinking && (
-              <div className="flex justify-start">
-                <div className="bg-gradient-to-br from-purple-600 to-purple-500 rounded-3xl p-5 shadow-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-1">
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                    </div>
-                    <span className="text-white text-lg">Salama is thinking...</span>
+                  <div className="flex justify-center gap-8">
+                    <button onClick={() => setCurrentCardIndex((prev) => (prev - 1 + totalCards) % totalCards)}>
+                      <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                      </svg>
+                    </button>
+                    <button onClick={handleSwipe}>
+                      <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            );
+          };
 
-          {/* Input Area */}
-          <div className="p-6 border-t border-white/30 space-y-4">
-            {/* Quick Actions */}
-            <div className="flex gap-2 flex-wrap justify-center">
-              <button 
-                onClick={() => talkToSalama("What's the weather today?")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                ☀️ Weather
-              </button>
-              <button 
-                onClick={() => talkToSalama("Tell me today's news")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                📰 News
-              </button>
-              <button 
-                onClick={() => talkToSalama("When is my next medication?")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                💊 Meds
-              </button>
-              <button 
-                onClick={() => talkToSalama("Tell me a joke")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                😄 Joke
-              </button>
-            </div>
+          return (
+            <div className="w-full min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 pb-24">
+              {showSidebar && (
+                <>
+                  <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSidebar(false)} />
+                  <div className="fixed left-0 top-0 bottom-0 w-64 bg-teal-600 z-50 p-6">
+                    <button onClick={() => setShowSidebar(false)} className="absolute top-4 right-4 text-white text-2xl">✕</button>
+                    <div className="mt-12">
+                      <button className="w-full text-left text-2xl text-white mb-6 p-3 rounded">1. Profile</button>
+                      <button className="w-full text-left text-2xl text-white mb-6 p-3 rounded">2. Settings</button>
+                      <button className="w-full text-left text-2xl text-white p-3 rounded">3. Log Out</button>
+                    </div>
+                  </div>
+                </>
+              )}
 
-            {/* Voice Button */}
-            <button
-              onClick={() => {
-                setIsListening(!isListening);
-                if (!isListening) {
-                  setTimeout(() => {
-                    setIsListening(false);
-                    talkToSalama("Hey Salama, what's the weather like today?");
-                  }, 3000);
-                }
-              }}
-              className={`w-24 h-24 mx-auto rounded-full ${isListening ? 'bg-red-500 animate-pulse' : 'bg-gradient-to-br from-purple-500 to-indigo-600'} shadow-2xl flex items-center justify-center hover:scale-110 transition-all`}
-            >
-              <span className="text-5xl">{isListening ? '🎙️' : '🎤'}</span>
-            </button>
-            <p className="text-center text-white text-lg">
-              {isListening ? 'Listening... Speak now' : 'Tap to talk to Salama'}
-            </p>
-
-            {/* Text Input */}
-            <div className="flex items-center gap-3 bg-white/20 rounded-full px-5 py-4">
-              <Keyboard className="w-6 h-6 text-white" />
-              <input
-                type="text"
-                value={salamaInput}
-                onChange={(e) => setSalamaInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && salamaInput.trim() && talkToSalama(salamaInput)}
-                placeholder="Or type your message here..."
-                className="flex-1 bg-transparent text-white text-xl outline-none placeholder-white/50"
-              />
-              <button 
-                onClick={() => salamaInput.trim() && talkToSalama(salamaInput)}
-                className="text-white hover:scale-110 transition-transform"
-              >
-                <span className="text-2xl">📤</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Sidebar */}
-      {showSidebar && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowSidebar(false)}
-          />
-          <div className="fixed left-0 top-0 bottom-0 w-64 bg-teal-600 z-50 p-6 shadow-2xl">
-            <button 
-              onClick={() => setShowSidebar(false)}
-              className="absolute top-4 right-4 text-white text-2xl"
-            >
-              ✕
-            </button>
-            <div className="mt-12">
-              <button className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded transition-colors">
-                1. Profile
-              </button>
-              <button className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded transition-colors">
-                2. Settings
-              </button>
-              <button className="w-full text-left text-2xl text-white hover:bg-white/20 p-3 rounded transition-colors">
-                3. Log Out
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Chat View */}
-      {chatWith && (
-        <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 flex flex-col">
-          <div className="p-6 flex items-center gap-4 border-b border-white/30">
-            <button 
-              onClick={() => setChatWith(null)}
-              className="text-white text-3xl"
-            >
-              ←
-            </button>
-            <div className="flex items-center gap-3">
-              {chatWith.type === 'caregiver' ? (
-                <div className="w-12 h-12 rounded-full border-2 border-white bg-teal-400 flex items-center justify-center">
-                  <User className="w-6 h-6 text-black" />
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-full border-2 border-white bg-blue-300 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-black" />
+              {currentPage === 'home' && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </button>
+                    <h1 className="text-4xl font-serif text-white">Home</h1>
+                    <button onClick={() => alert('🚨 SOS!')} className="w-20 h-20 rounded-3xl bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-3xl font-bold">SOS</span>
+                    </button>
+                  </div>
+                  <div className="text-center mb-8">
+                    <div className="text-6xl font-bold text-white mb-2">19:11</div>
+                    <div className="text-3xl text-black font-serif">Hello (Name)</div>
+                    <div className="text-3xl text-black font-serif">How are you?</div>
+                  </div>
+                  <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
+                  {renderSwipeCard(homeCards[currentCardIndex])}
                 </div>
               )}
-              <div>
-                <h2 className="text-2xl font-serif text-white">{chatWith.name}</h2>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                setSosPressed(true);
-                setTimeout(() => setSosPressed(false), 300);
-                alert('🚨 SOS ALERT SENT! Emergency contacts notified.');
-              }}
-              className={`ml-auto w-16 h-16 rounded-3xl bg-red-500 flex items-center justify-center transition-all ${sosPressed ? 'scale-95 animate-pulse' : 'hover:scale-105'}`}
-            >
-              <span className="text-white text-xl font-bold">SOS</span>
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {chatMessages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] rounded-2xl p-4 ${msg.sender === 'me' ? 'bg-teal-700 ml-auto' : 'bg-teal-500'}`}>
-                  <p className="text-white text-lg">{msg.text}</p>
-                  <span className="text-white/70 text-xs mt-1 block">{msg.time}</span>
+              {currentPage === 'checkin' && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </button>
+                    <h1 className="text-4xl font-serif text-white">Check-In</h1>
+                    <button className="w-20 h-20 rounded-3xl bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-3xl font-bold">SOS</span>
+                    </button>
+                  </div>
+                  <h3 className="text-2xl text-black font-serif mb-4">How Am I Feeling?</h3>
+                  <div className="flex justify-between px-4 mb-4">
+                    {moods.map((mood, idx) => (
+                      <button key={idx} onClick={() => setSelectedMood(idx)} 
+                        className={`w-14 h-14 rounded-full ${mood.color} text-3xl ${selectedMood === idx ? 'scale-125' : ''}`}>
+                        {mood.emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="h-3 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full mx-4 mb-8"></div>
+                  <h3 className="text-3xl text-black font-serif mb-4">Memories</h3>
+                  <div className="grid grid-cols-3 gap-4 px-4">
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} className="aspect-square bg-white rounded-lg border-4 border-black"></div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
 
-          <div className="p-4 border-t border-white/30 bg-gradient-to-b from-teal-600 to-blue-300">
-            <div className="flex items-center gap-3 bg-teal-700 rounded-full px-4 py-3">
-              <Keyboard className="w-6 h-6 text-white" />
-              <input
-                type="text"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="(Text)"
-                className="flex-1 bg-transparent text-white text-lg outline-none placeholder-white/50"
-              />
-              <button onClick={sendMessage}>
-                <Mic className="w-6 h-6 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Protection AI Chat */}
-      {showProtectionChat && (
-        <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 flex flex-col">
-          <div className="p-6 flex items-center gap-4 border-b border-white/30">
-            <button 
-              onClick={() => setShowProtectionChat(false)}
-              className="text-white text-3xl"
-            >
-              ←
-            </button>
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center">
-                <span className="text-2xl">🛡️</span>
-              </div>
-              <div>
-                <h2 className="text-2xl font-serif text-white">Salama AI Protection</h2>
-                <p className="text-sm text-white/80">Ask me about anything suspicious</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                setSosPressed(true);
-                setTimeout(() => setSosPressed(false), 300);
-                alert('🚨 SOS ALERT SENT! Emergency contacts notified.');
-              }}
-              className={`w-16 h-16 rounded-3xl bg-red-500 flex items-center justify-center transition-all ${sosPressed ? 'scale-95 animate-pulse' : 'hover:scale-105'}`}
-            >
-              <span className="text-white text-xl font-bold">SOS</span>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {protectionMessages.length === 0 ? (
-              <div className="text-center mt-12">
-                <div className="w-24 h-24 bg-purple-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-5xl">🛡️</span>
+              {currentPage === 'carenotes' && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </button>
+                    <h1 className="text-4xl font-serif text-white">Care Notes</h1>
+                    <button className="w-20 h-20 rounded-3xl bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-3xl font-bold">SOS</span>
+                    </button>
+                  </div>
+                  {renderSwipeCard(careNotesCards[currentCardIndex])}
                 </div>
-                <h3 className="text-2xl text-white font-serif mb-4">I'm here to protect you</h3>
-                <p className="text-lg text-white/90 mb-6">Ask me about:</p>
-                <div className="space-y-2 text-left max-w-md mx-auto">
-                  <p className="text-white">• Suspicious phone calls</p>
-                  <p className="text-white">• Strange messages or emails</p>
-                  <p className="text-white">• Unexpected visitors</p>
-                  <p className="text-white">• Anything that doesn't feel right</p>
+              )}
+
+              {currentPage === 'safety' && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-12">
+                    <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </button>
+                    <h1 className="text-4xl font-serif text-white">Safety</h1>
+                    <div className="w-14"></div>
+                  </div>
+                  <div className="flex justify-center gap-8 mb-12">
+                    <button onClick={() => alert('OK status sent!')} className="w-40 h-40 rounded-3xl bg-green-500 flex items-center justify-center">
+                      <span className="text-white text-5xl font-bold">OK</span>
+                    </button>
+                    <button onClick={() => alert('🚨 SOS!')} className="w-40 h-40 rounded-3xl bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-5xl font-bold">SOS</span>
+                    </button>
+                  </div>
+                  <h3 className="text-3xl text-black font-serif mb-4 underline">Protection</h3>
+                  <button onClick={() => setShowProtectionChat(true)} className="text-xl text-black mb-3">• Speak</button><br/>
+                  <button onClick={() => setShowProtectionChat(true)} className="text-xl text-black">• Type</button>
                 </div>
-              </div>
-            ) : (
-              protectionMessages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl p-4 ${msg.sender === 'me' ? 'bg-teal-700' : 'bg-purple-600'}`}>
-                    {msg.sender === 'salama' && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xl">🛡️</span>
-                        <span className="text-white font-semibold text-sm">Salama AI</span>
+              )}
+
+              {currentPage === 'carecircle' && (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </button>
+                    <h1 className="text-4xl font-serif text-white">Care Circle</h1>
+                    <button className="w-20 h-20 rounded-3xl bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-3xl font-bold">SOS</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6 px-8 mt-12">
+                    {caregivers.map(cg => (
+                      <button key={cg.id} onClick={() => setChatWith({type: 'caregiver', name: cg.name})} className="flex flex-col items-center">
+                        <div className="w-32 h-32 rounded-full border-4 border-black bg-teal-400 mb-3 flex items-center justify-center">
+                          <User className="w-16 h-16 text-black" />
+                        </div>
+                        <p className="text-center text-lg text-black font-serif">{cg.label}</p>
+                      </button>
+                    ))}
+                    <button onClick={() => setShowCommunities(true)} className="flex flex-col items-center">
+                      <div className="w-32 h-32 rounded-full border-4 border-black bg-blue-300 mb-3 flex items-center justify-center">
+                        <Users className="w-16 h-16 text-black" />
                       </div>
-                    )}
-                    <p className="text-white text-lg whitespace-pre-line">{msg.text}</p>
-                    <span className="text-white/70 text-xs mt-1 block">{msg.time}</span>
+                      <p className="text-center text-lg text-black font-serif">Community</p>
+                    </button>
                   </div>
                 </div>
-              ))
-            )}
-            
-            {isAIThinking && (
-              <div className="flex justify-start">
-                <div className="bg-purple-600 rounded-2xl p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                      <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                    </div>
-                    <span className="text-white text-sm">Salama is analyzing...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          <div className="p-4 border-t border-white/30 bg-gradient-to-b from-teal-600 to-blue-300">
-            <div className="flex items-center gap-3 bg-teal-700 rounded-full px-4 py-3 mb-3">
-              <Keyboard className="w-6 h-6 text-white" />
-              <input
-                type="text"
-                value={protectionInput}
-                onChange={(e) => setProtectionInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && protectionInput.trim() && askSalama(protectionInput)}
-                placeholder="(Text)"
-                className="flex-1 bg-transparent text-white text-lg outline-none placeholder-white/50"
-              />
-              <button onClick={() => protectionInput.trim() && askSalama(protectionInput)}>
-                <Mic className="w-6 h-6 text-white" />
-              </button>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <button 
-                onClick={() => askSalama("I got a suspicious phone call asking for my bank details")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                Suspicious call
-              </button>
-              <button 
-                onClick={() => askSalama("I received a strange text message with a link")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                Strange message
-              </button>
-              <button 
-                onClick={() => askSalama("Someone came to my door claiming to be from the utility company")}
-                className="px-4 py-2 bg-white/20 rounded-full text-white text-sm hover:bg-white/30 transition-colors"
-              >
-                Unexpected visitor
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Background Monitoring Alert Banner */}
-      {backgroundMonitoring && monitoringAlerts.length > 0 && !showProtectionChat && (
-        <div className="fixed top-20 left-4 right-4 z-40">
-          {monitoringAlerts.map((alert, idx) => (
-            <div key={idx} className="bg-orange-500 text-white p-4 rounded-lg shadow-2xl mb-2 animate-pulse">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">⚠️</span>
-                <div className="flex-1">
-                  <p className="font-semibold mb-1">Background Monitoring Alert</p>
-                  <p className="text-sm">{alert.message}</p>
-                  <p className="text-xs mt-2 opacity-75">Caregivers have been notified</p>
-                </div>
-                <button 
-                  onClick={() => setMonitoringAlerts(prev => prev.filter((_, i) => i !== idx))}
-                  className="text-white text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {showCommunities && (
-        <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 pb-24">
-          <div className="p-6">
-            <div className="flex items-center gap-4 mb-8">
-              <button 
-                onClick={() => setShowCommunities(false)}
-                className="text-white text-3xl"
-              >
-                ←
-              </button>
-              <div className="flex items-center gap-3">
-                <Users className="w-12 h-12 text-black" />
-                <h2 className="text-3xl font-serif text-black">Community</h2>
-              </div>
-              <button 
-                onClick={() => {
-                  setSosPressed(true);
-                  setTimeout(() => setSosPressed(false), 300);
-                  alert('🚨 SOS ALERT SENT! Emergency contacts notified.');
-                }}
-                className={`ml-auto w-16 h-16 rounded-3xl bg-red-500 flex items-center justify-center transition-all ${sosPressed ? 'scale-95 animate-pulse' : 'hover:scale-105'}`}
-              >
-                <span className="text-white text-xl font-bold">SOS</span>
-              </button>
-            </div>
-
-            <h3 className="text-3xl text-black font-serif mb-8 underline">My Communities</h3>
-
-            <div className="grid grid-cols-2 gap-6 px-4">
-              {communities.map((community) => (
-                <button
-                  key={community.id}
-                  onClick={() => {
-                    setShowCommunities(false);
-                    setChatWith({ type: 'community', name: community.name });
-                  }}
-                  className="flex flex-col items-center hover:scale-105 transition-transform"
-                >
-                  <div className="w-32 h-32 rounded-full border-4 border-black bg-gradient-to-b from-blue-300 to-blue-200 mb-3 flex items-center justify-center">
-                    <Users className="w-16 h-16 text-black" />
-                  </div>
-                  <p className="text-center text-base text-black font-serif">{community.name}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      {currentPage === 'home' && (
-        <div className="p-6">
-          {renderHeader('')}
-          
-          <div className="text-center mb-8">
-            <div className="text-6xl font-bold text-white mb-2">19:11</div>
-            <div className="text-3xl text-black font-serif mb-2">Hello (Name)</div>
-            <div className="text-3xl text-black font-serif">How are you?</div>
-          </div>
-
-          <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
-
-          {renderSwipeCard(homeCards[currentCardIndex])}
-        </div>
-      )}
-
-      {currentPage === 'checkin' && (
-        <div className="p-6">
-          {renderHeader('Check-In')}
-
-          <div className="mb-8">
-            <h3 className="text-2xl text-black font-serif mb-4">How Am I Feeling?</h3>
-            <div className="flex justify-between items-center mb-4 px-4">
-              {moods.map((mood, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedMood(idx)}
-                  className={`w-14 h-14 rounded-full ${mood.color} flex items-center justify-center text-3xl transition-transform ${selectedMood === idx ? 'scale-125' : ''}`}
-                >
-                  {mood.emoji}
-                </button>
-              ))}
-            </div>
-            <div className="h-3 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full mx-4"></div>
-          </div>
-
-          <div className="mb-8">
-            <h3 className="text-3xl text-black font-serif mb-4">Record Your Thoughts</h3>
-            <button 
-              onClick={() => setIsRecording(!isRecording)}
-              className="flex items-center gap-4 mb-6"
-            >
-              <div className={`w-16 h-16 ${isRecording ? 'bg-red-500' : 'bg-white'} rounded-full flex items-center justify-center transition-colors`}>
-                <Mic className="w-8 h-8 text-teal-700" />
-              </div>
-              <div className="flex-1 h-2 bg-white rounded-full"></div>
-            </button>
-
-            <button 
-              onClick={() => setShowRecordings(!showRecordings)}
-              className="text-2xl text-white font-serif mb-6 flex items-center gap-2"
-            >
-              <span>Previous Recordings</span>
-              <span className={`transform transition-transform ${showRecordings ? 'rotate-180' : ''}`}>▼</span>
-            </button>
-
-            {showRecordings && (
-              <div className="bg-white bg-opacity-30 rounded-lg p-4 mb-6">
-                {recordings.map((rec, idx) => (
-                  <button key={idx} className="w-full text-left text-lg text-black mb-2 hover:text-white transition-colors">
-                    {rec}
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around py-2 z-50">
+                {[
+                  {id:'home',label:'Home',icon:'🏠'},
+                  {id:'checkin',label:'Check-In',icon:'📝'},
+                  {id:'carenotes',label:'Care Notes',icon:'📋'},
+                  {id:'safety',label:'Safety',icon:'🛡️'},
+                  {id:'carecircle',label:'Care-Circle',icon:'👥'}
+                ].map(item => (
+                  <button key={item.id} onClick={() => setCurrentPage(item.id)} className="flex flex-col items-center">
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className={`text-xs ${currentPage === item.id ? 'text-teal-700 font-bold' : 'text-teal-600'}`}>{item.label}</span>
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-3xl text-black font-serif mb-6">Memories</h3>
-            <div className="grid grid-cols-3 gap-4 px-4">
-              {[1,2,3,4,5,6].map((i) => (
-                <button key={i} className="aspect-square bg-white rounded-lg border-4 border-black flex items-center justify-center hover:scale-105 transition-transform">
-                  <div className="text-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-black mx-auto mb-2"></div>
-                    <div className="w-12 h-1 bg-black mx-auto mb-1"></div>
-                    <div className="w-10 h-1 bg-black mx-auto"></div>
-                  </div>
-                </button>
-              ))}
             </div>
-          </div>
-        </div>
-      )}
+          );
+        };
 
-      {currentPage === 'carenotes' && (
-        <div className="p-6">
-          {renderHeader('Care Notes')}
-          <div className="mt-20">
-            {renderSwipeCard(careNotesCards[currentCardIndex])}
-          </div>
-        </div>
-      )}
-
-      {currentPage === 'safety' && (
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-12">
-            <button className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </button>
-            <h1 className="text-4xl font-serif text-white">Safety</h1>
-            <div className="w-14"></div>
-          </div>
-
-          <div className="flex justify-center gap-8 mb-12">
-            <button 
-              onClick={() => {
-                setOkPressed(true);
-                setTimeout(() => setOkPressed(false), 300);
-                alert('OK status sent to caregivers!');
-              }}
-              className={`w-40 h-40 rounded-3xl bg-green-500 flex items-center justify-center shadow-2xl transition-all ${okPressed ? 'scale-95 shadow-lg' : 'hover:scale-105'}`}
-            >
-              <span className="text-white text-5xl font-bold">OK</span>
-            </button>
-            <button 
-              onClick={() => {
-                setSosPressed(true);
-                setTimeout(() => setSosPressed(false), 300);
-                alert('🚨 SOS ALERT SENT! Emergency contacts notified.');
-              }}
-              className={`w-40 h-40 rounded-3xl bg-red-500 flex items-center justify-center shadow-2xl transition-all ${sosPressed ? 'scale-95 shadow-lg animate-pulse' : 'hover:scale-105'}`}
-            >
-              <span className="text-white text-5xl font-bold">SOS</span>
-            </button>
-          </div>
-
-          <div className="mb-8">
-            <h3 className="text-3xl text-black font-serif mb-4 underline">Quick Texts</h3>
-            {quickTexts.map((text, idx) => (
-              <button key={idx} className="w-full text-left text-xl text-black mb-3 hover:text-white transition-colors">
-                {idx + 1}. {text}
-              </button>
-            ))}
-          </div>
-
-          <div className="mb-8">
-            <h3 className="text-3xl text-black font-serif mb-4 underline">Protection</h3>
-            <p className="text-lg text-black mb-4 italic">
-              (You can ask Salama about messages, calls, or situations that don't feel right.)
-            </p>
-            <button 
-              onClick={() => setShowProtectionChat(true)}
-              className="flex items-center gap-2 text-xl text-black mb-3 hover:text-white transition-colors"
-            >
-              <Mic className="w-6 h-6" />
-              <span>• Speak</span>
-            </button>
-            <button 
-              onClick={() => setShowProtectionChat(true)}
-              className="flex items-center gap-2 text-xl text-black hover:text-white transition-colors"
-            >
-              <Keyboard className="w-6 h-6" />
-              <span>• Type</span>
-            </button>
-            
-            <div className="mt-6 bg-white/30 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🤖</span>
-                  <span className="text-lg font-semibold text-black">Background Monitoring</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setBackgroundMonitoring(!backgroundMonitoring);
-                    if (!backgroundMonitoring) {
-                      alert('Background monitoring enabled. Salama AI will watch for health and safety concerns.');
-                    }
-                  }}
-                  className={`w-14 h-7 rounded-full transition-colors ${backgroundMonitoring ? 'bg-green-500' : 'bg-gray-400'}`}
-                >
-                  <div className={`w-6 h-6 bg-white rounded-full transition-transform ${backgroundMonitoring ? 'translate-x-7' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <p className="text-sm text-black">
-                {backgroundMonitoring 
-                  ? '✓ AI is monitoring for unusual breathing, movement patterns, and safety concerns' 
-                  : 'Tap to enable AI health and safety monitoring'}
-              </p>
-            </div>
-
-            {/* Simulate a monitoring alert (Demo) */}
-            <button
-              onClick={() => {
-                setMonitoringAlerts([{
-                  message: "Detected irregular breathing pattern. Heart rate elevated to 95 bpm. Recommending caregiver check-in.",
-                  time: new Date().toLocaleTimeString()
-                }]);
-                setTimeout(() => setMonitoringAlerts([]), 10000);
-              }}
-              className="mt-4 w-full bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors"
-            >
-              🔬 Demo: Trigger Background Alert
-            </button>
-          </div>
-        </div>
-      )}
-
-      {currentPage === 'carecircle' && (
-        <div className="p-6">
-          {renderHeader('Care Circle')}
-
-          <div className="grid grid-cols-2 gap-6 px-8 mt-12">
-            {caregivers.slice(0, 4).map((cg) => (
-              <button 
-                key={cg.id} 
-                onClick={() => setChatWith({ type: 'caregiver', name: cg.name })}
-                className={`flex flex-col items-center hover:scale-105 transition-transform ${selectedCaregiver === cg.id ? 'scale-105' : ''}`}
-              >
-                <div className={`w-32 h-32 rounded-full border-4 ${selectedCaregiver === cg.id ? 'border-yellow-400' : 'border-black'} bg-gradient-to-b from-teal-400 to-teal-300 mb-3 flex items-center justify-center`}>
-                  <User className="w-16 h-16 text-black" />
-                </div>
-                <p className="text-center text-lg text-black font-serif">{cg.label}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 px-8 mt-6">
-            <button 
-              onClick={() => setChatWith({ type: 'caregiver', name: caregivers[4].name })}
-              className={`flex flex-col items-center hover:scale-105 transition-transform ${selectedCaregiver === 5 ? 'scale-105' : ''}`}
-            >
-              <div className={`w-32 h-32 rounded-full border-4 ${selectedCaregiver === 5 ? 'border-yellow-400' : 'border-black'} bg-gradient-to-b from-teal-400 to-teal-300 mb-3 flex items-center justify-center`}>
-                <User className="w-16 h-16 text-black" />
-              </div>
-              <p className="text-center text-lg text-black font-serif">{caregivers[4].label}</p>
-            </button>
-            <button 
-              onClick={() => setShowCommunities(true)}
-              className={`flex flex-col items-center hover:scale-105 transition-transform ${selectedCaregiver === 'community' ? 'scale-105' : ''}`}
-            >
-              <div className={`w-32 h-32 rounded-full border-4 ${selectedCaregiver === 'community' ? 'border-yellow-400' : 'border-black'} bg-gradient-to-b from-blue-300 to-blue-200 mb-3 flex items-center justify-center`}>
-                <Users className="w-16 h-16 text-black" />
-              </div>
-              <p className="text-center text-lg text-black font-serif">Community</p>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {renderNavBar()}
-    </div>
-  );
-};
-
-export default SalamaApp;
+        ReactDOM.render(<SalamaApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-  "name": "Salama - AI Care Companion",
+  "name": "Salama",
   "short_name": "Salama",
   "description": "AI-powered care companion for elderly and caregivers",
   "start_url": "/",
@@ -15,4 +15,5 @@
       "purpose": "any maskable"
     }
   ]
+
 }

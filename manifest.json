@@ -1,8 +1,8 @@
 {
   "name": "Salama",
   "short_name": "Salama",
-  "description": "AI-powered care companion for elderly and caregivers",
-  "start_url": "/",
+  "start_url": "/Salama/",
+  "scope": "/Salama/",
   "display": "standalone",
   "background_color": "#0d9488",
   "theme_color": "#0d9488",
@@ -15,5 +15,4 @@
       "purpose": "any maskable"
     }
   ]
-
 }

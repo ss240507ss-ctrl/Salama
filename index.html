@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -22,6 +23,11 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script type="text/babel">
+        // Supabase Configuration
+const SUPABASE_URL = 'YOUR-PROJECT-URL-HERE';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY-HERE';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const { useState } = React;
         
         const User = ({className}) => (
@@ -656,3 +662,4 @@
     </script>
 </body>
 </html>
+

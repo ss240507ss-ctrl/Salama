@@ -102,3 +102,75 @@ Respond as Salama:`;
     };
   }
 };
+```
+
+4. Click **"Commit new file"**
+
+---
+
+## **STEP 3: Deploy to Netlify (3 minutes)**
+
+1. Go back to **Netlify dashboard** (netlify.com)
+2. Click **"Add new site"** button
+3. Click **"Import an existing project"**
+4. Click **"Deploy with GitHub"**
+5. **Select your Salama repository** from the list
+6. Leave all settings as default
+7. Click **"Deploy site"**
+
+⏳ **Wait 1-2 minutes** for deployment...
+
+---
+
+## **STEP 4: Get Gemini API Key (2 minutes)**
+
+1. Go to **https://aistudio.google.com/app/apikey**
+2. Sign in with your Google account
+3. Click **"Create API Key"**
+4. **Copy the key** (looks like: `AIzaSyC...`)
+
+---
+
+## **STEP 5: Add API Key to Netlify (2 minutes)**
+
+1. In **Netlify**, once your site is deployed, click **"Site configuration"** (top menu)
+2. In the left sidebar, click **"Environment variables"**
+3. Click **"Add a variable"**
+4. Fill in:
+   - **Key:** `GEMINI_API_KEY`
+   - **Value:** Paste your Gemini API key here
+5. Click **"Create variable"**
+
+---
+
+## **STEP 6: Redeploy (1 minute)**
+
+1. Go to **"Deploys"** tab (top menu)
+2. Click **"Trigger deploy"** dropdown
+3. Click **"Clear cache and deploy site"**
+
+⏳ **Wait 1-2 minutes...**
+
+---
+
+## **STEP 7: Test Your Site! 🎉**
+
+1. Click on your **site URL** (looks like: `https://your-site-name.netlify.app`)
+2. **Sign up** as a new user
+3. Go to **Safety** page
+4. Click **"Salama AI Companion"**
+5. Type: **"Hello, how are you?"**
+6. **AI should respond!** 🤖
+
+---
+
+## **Your Folder Structure Should Look Like:**
+```
+your-salama-repo/
+├── index.html
+├── netlify.toml
+├── netlify/
+│   └── functions/
+│       └── ask-salama.js
+├── manifest.json (if you have it)
+└── logo.png (if you have it)

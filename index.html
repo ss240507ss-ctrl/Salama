@@ -70,7 +70,7 @@
           const [showAuth, setShowAuth] = useState(false);
           const [authMode, setAuthMode] = useState('login');
           const [authForm, setAuthForm] = useState({ username: '', password: '', name: '', role: '' });
-          
+          const [showPassword, setShowPassword] = useState(false);
           const [currentPage, setCurrentPage] = useState('home');
           const [currentCardIndex, setCurrentCardIndex] = useState(0);
           const [selectedMood, setSelectedMood] = useState(null);
@@ -120,61 +120,90 @@
             setIsLoading(false);
           };
 
-          const handleAuth = async (e) => {
-            e.preventDefault();
-            if (authMode === 'login') {
-              const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', authForm.username)
-                .eq('password', authForm.password)
-                .single();
-              
-              if (data) {
-                setCurrentUser(data);
-                localStorage.setItem('salamaUserId', data.id);
-                setShowAuth(false);
-              } else {
-                alert('Invalid username or password');
-              }
-            } else {
-              const existingUser = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', authForm.username)
-                .single();
-              
-              if (existingUser.data) {
-                alert('Username already exists');
-                return;
-              }
+const handleAuth = async (e) => {
+  e.preventDefault();
+  
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', authForm.username)
+        .eq('password', authForm.password)
+        .single();
+      
+      if (error || !data) {
+        alert('Invalid username or password. Please try again.');
+        return;
+      }
+      
+      setCurrentUser(data);
+      localStorage.setItem('salamaUserId', data.id);
+      setShowAuth(false);
+      setAuthForm({ username: '', password: '', name: '', role: '' });
+      
+    } else {
+      // Signup mode
+      
+      // Validate all fields
+      if (!authForm.username || !authForm.password || !authForm.name || !authForm.role) {
+        alert('Please fill in all fields');
+        return;
+      }
+      
+      // Check if username exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', authForm.username)
+        .maybeSingle();
+      
+      if (existingUser) {
+        alert('Username already exists. Please choose a different username.');
+        return;
+      }
 
-              const newUser = {
-                username: authForm.username,
-                password: authForm.password,
-                name: authForm.name,
-                role: authForm.role,
-                avatar: '👤',
-                care_circle_id: authForm.role === 'care_recipient' ? crypto.randomUUID() : null
-              };
+      const newUser = {
+        username: authForm.username.trim(),
+        password: authForm.password,
+        name: authForm.name.trim(),
+        role: authForm.role,
+        avatar: authForm.role === 'care_recipient' ? '👴' : '👨‍⚕️',
+        care_circle_id: authForm.role === 'care_recipient' ? crypto.randomUUID() : null
+      };
 
-              const { data, error } = await supabase
-                .from('users')
-                .insert([newUser])
-                .select()
-                .single();
+      const { data, error } = await supabase
+        .from('users')
+        .insert([newUser])
+        .select()
+        .single();
 
-              if (data) {
-                setCurrentUser(data);
-                localStorage.setItem('salamaUserId', data.id);
-                setShowAuth(false);
-                if (data.role === 'care_recipient') {
-                  generateQRCode(data.care_circle_id);
-                  setShowQRCode(true);
-                }
-              }
-            }
-          };
+      if (error) {
+        console.error('Signup error:', error);
+        alert('Error creating account: ' + error.message);
+        return;
+      }
+
+      if (data) {
+        setCurrentUser(data);
+        localStorage.setItem('salamaUserId', data.id);
+        setAuthForm({ username: '', password: '', name: '', role: '' });
+        
+        if (data.role === 'care_recipient') {
+          setTimeout(() => {
+            generateQRCode(data.care_circle_id);
+            setShowQRCode(true);
+          }, 500);
+        }
+        
+        setShowAuth(false);
+      }
+    }
+  } catch (err) {
+    console.error('Auth error:', err);
+    alert('An error occurred. Please try again.');
+  }
+};
 
           const generateQRCode = async (circleId) => {
             const qrContainer = document.getElementById('qr-code-container');
@@ -336,35 +365,7 @@
             }
           };
 
-          const askSalama = (question) => {
-            setProtectionMessages(prev => [...prev, {
-              text: question,
-              sender: "me",
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
-            setProtectionInput('');
-            setIsAIThinking(true);
-
-            setTimeout(() => {
-              let response = "I'm here to help you stay safe. Tell me more about what's concerning you.";
-              const lq = question.toLowerCase();
-              
-              if (lq.includes('call') || lq.includes('scam')) {
-                response = "This appears to be a potential scam. Don't share personal information. I've notified your caregivers.";
-              } else if (lq.includes('message') || lq.includes('text')) {
-                response = "This shows signs of a phishing attempt. Don't click any links. Your caregivers have been notified.";
-              } else if (lq.includes('door') || lq.includes('person')) {
-                response = "Don't open the door if you're unsure. Ask for ID. I've alerted your caregiver.";
-              }
-              
-              setProtectionMessages(prev => [...prev, {
-                text: response,
-                sender: "salama",
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              }]);
-              setIsAIThinking(false);
-            }, 2000);
-          };
+         
 
           const renderNavBar = () => (
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 z-50">
@@ -382,7 +383,190 @@
               ))}
             </div>
           );
+const askSalama = async (question) => {
+  setProtectionMessages(prev => [...prev, {
+    text: question,
+    sender: "me",
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }]);
+  setProtectionInput('');
+  setIsAIThinking(true);
 
+  try {
+    // Call your Netlify Function instead of calling Gemini directly
+    const response = await fetch('/.netlify/functions/ask-salama', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: question,
+        conversationHistory: protectionMessages,
+        userName: currentUser.name,
+        userRole: currentUser.role
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.response) {
+      if (data.shouldAlert && currentUser.role === 'care_recipient') {
+        console.log('🚨 Alert sent to caregivers:', question);
+        
+        setTimeout(() => {
+          setMonitoringAlerts([{
+            message: `AI detected concern: "${question.substring(0, 50)}..." - Caregivers notified.`
+          }]);
+        }, 1000);
+      }
+      
+      setProtectionMessages(prev => [...prev, {
+        text: data.response,
+        sender: "salama",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    } else if (data.fallback) {
+      throw new Error('AI service unavailable');
+    }
+    
+  } catch (error) {
+    console.error('AI Error:', error);
+    
+    let fallbackResponse = "I'm here with you. ";
+    const lq = question.toLowerCase();
+    
+    if (lq.includes('lonely') || lq.includes('alone')) {
+      fallbackResponse += "I understand feeling lonely can be hard. Would you like to talk about what's on your mind, or shall I help you connect with someone from your care circle?";
+    } else if (lq.includes('pain') || lq.includes('hurt')) {
+      fallbackResponse += "I'm concerned to hear you're in pain. I'm notifying your caregivers right away. Can you describe where it hurts?";
+    } else if (lq.includes('hello') || lq.includes('hi')) {
+      fallbackResponse += "Hello! It's wonderful to hear from you. How can I help you today?";
+    } else if (lq.includes('thank')) {
+      fallbackResponse += "You're very welcome! I'm always here whenever you need me.";
+    } else {
+      fallbackResponse += "I'm having a small connection issue, but I'm here with you. If this is urgent, please use the SOS button or contact your caregiver directly.";
+    }
+    
+    setProtectionMessages(prev => [...prev, {
+      text: fallbackResponse,
+      sender: "salama",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }]);
+  }
+  
+  setIsAIThinking(false);
+};
+```
+
+5. Scroll down and click **"Commit changes"**
+
+---
+
+### **Step 5: Verify Your Folder Structure**
+
+Go back to the main page of your repository. You should now see:
+```
+📁 netlify
+  📁 functions
+    📄 ask-salama.js
+📄 index.html
+📄 netlify.toml
+📄 manifest.json (if you had it)
+📄 logo.png (if you had it)
+```
+
+---
+
+## **Now Deploy to Netlify:**
+
+### **Step 6: Sign Up for Netlify**
+
+1. Go to **[netlify.com](https://netlify.com)**
+2. Click **"Sign up"**
+3. Choose **"Sign up with GitHub"**
+4. Authorize Netlify to access your GitHub
+
+---
+
+### **Step 7: Deploy Your Site**
+
+1. Click **"Add new site"** button
+2. Select **"Import an existing project"**
+3. Click **"Deploy with GitHub"**
+4. Select your **Salama repository**
+5. Leave all settings as default
+6. Click **"Deploy site"**
+
+Wait 1-2 minutes for deployment...
+
+---
+
+### **Step 8: Add Your Gemini API Key**
+
+1. Once deployed, click **"Site settings"** (in the top menu)
+2. In the left sidebar, click **"Environment variables"**
+3. Click **"Add a variable"** button
+4. Fill in:
+   - **Key:** `GEMINI_API_KEY`
+   - **Value:** Your actual Gemini API key (from Google AI Studio)
+5. Click **"Create variable"**
+
+---
+
+### **Step 9: Redeploy with the API Key**
+
+1. Go to the **"Deploys"** tab (top menu)
+2. Click **"Trigger deploy"** dropdown
+3. Select **"Clear cache and deploy site"**
+
+Wait 1-2 minutes...
+
+---
+
+### **Step 10: Test Your Site! 🎉**
+
+1. Click on your site URL (something like `https://your-site-name.netlify.app`)
+2. Sign up or log in
+3. Go to **Safety** page
+4. Click **"Salama AI Companion"**
+5. Type: "Hello, how are you?"
+6. The AI should respond!
+
+---
+
+## **Troubleshooting:**
+
+### **If you get "Function not found" error:**
+- Make sure `netlify.toml` is in the root of your repo
+- Make sure the path is exactly `netlify/functions/ask-salama.js`
+- Redeploy (clear cache and deploy)
+
+### **If AI doesn't respond:**
+- Check you added the `GEMINI_API_KEY` environment variable
+- Make sure you redeployed after adding it
+- Check the Netlify function logs (Deploys → Function logs)
+
+### **If you get CORS errors:**
+- This shouldn't happen with Netlify Functions
+- Make sure you're using `/.netlify/functions/ask-salama` (with the leading `/`)
+
+---
+
+## **Quick Visual Summary:**
+```
+1. Create netlify.toml file ✅
+   ↓
+2. Create netlify/functions/ask-salama.js file ✅
+   ↓
+3. Update index.html ✅
+   ↓
+4. Deploy to Netlify ✅
+   ↓
+5. Add GEMINI_API_KEY environment variable ✅
+   ↓
+6. Redeploy ✅
+   ↓
+7. Test! 🎉
           const renderHeader = (title) => (
             <div className="flex justify-between items-center mb-8">
               <button onClick={() => setShowSidebar(!showSidebar)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
@@ -469,14 +653,23 @@
                       className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
                       required
                     />
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={authForm.password}
-                      onChange={(e) => setAuthForm({...authForm, password: e.target.value})}
-                      className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
-                      required
-                    />
+                 <div className="relative">
+  <input
+    type={showPassword ? "text" : "password"}
+    placeholder="Password"
+    value={authForm.password}
+    onChange={(e) => setAuthForm({...authForm, password: e.target.value})}
+    className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg pr-12"
+    required
+  />
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 text-2xl"
+  >
+    {showPassword ? '🙈' : '👁️'}
+  </button>
+</div>
                     {authMode === 'signup' && (
                       <>
                         <input
@@ -683,17 +876,20 @@
                         <Mic className="w-6 h-6 text-white" />
                       </button>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <button onClick={() => askSalama("Suspicious phone call")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
-                        Suspicious call
-                      </button>
-                      <button onClick={() => askSalama("Strange text message")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
-                        Strange message
-                      </button>
-                      <button onClick={() => askSalama("Someone at my door")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
-                        Unexpected visitor
-                      </button>
-                    </div>
+           <div className="flex gap-2 flex-wrap">
+  <button onClick={() => askSalama("I'm feeling lonely")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
+    I'm lonely
+  </button>
+  <button onClick={() => askSalama("Tell me a joke")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
+    Tell me a joke
+  </button>
+  <button onClick={() => askSalama("Suspicious phone call")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
+    Safety concern
+  </button>
+  <button onClick={() => askSalama("What's the weather like?")} className="px-4 py-2 bg-white/20 rounded-full text-white text-sm">
+    Weather
+  </button>
+</div>
                   </div>
                 </div>
               )}
@@ -947,3 +1143,4 @@
     </script>
 </body>
 </html>
+

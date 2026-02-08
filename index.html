@@ -27,7 +27,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         
-        // Supabase Configuration
         const SUPABASE_URL = 'https://gqgsmhqpixvqxkynpotc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZ3NtaHFwaXh2cXhreW5wb3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMDA3NjMsImV4cCI6MjA4NTY3Njc2M30.sbscrW-ho5JnwtAo1732bb5q5kBfkkzxrTmPjAIe8u4';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -108,7 +107,11 @@
           const [newAppointment, setNewAppointment] = useState({ appointment_name: '', appointment_time: '', location: '', notes: '' });
           const [newActivity, setNewActivity] = useState({ activity_name: '', time: '', notes: '' });
           const [uploadingFile, setUploadingFile] = useState(false);
-const checkUser = async () => {
+          const [showSettings, setShowSettings] = useState(false);
+          const [caregiverPermissions, setCaregiverPermissions] = useState([]);
+          const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
+          const [myCareRecipients, setMyCareRecipients] = useState([]);
+            const checkUser = async () => {
             const userId = localStorage.getItem('salamaUserId');
             if (userId) {
               const { data, error } = await supabase
@@ -120,67 +123,199 @@ const checkUser = async () => {
             }
             setIsLoading(false);
           };
+
           useEffect(() => {
             checkUser();
             const timer = setInterval(() => setCurrentTime(new Date()), 1000);
             return () => clearInterval(timer);
           }, []);
 
-        useEffect(() => {
+          useEffect(() => {
             if (currentUser && currentUser.role === 'care_recipient') {
               loadCaregivers();
+            }
+            if (currentUser && currentUser.role === 'caregiver') {
+              loadMyCareRecipients();
             }
             if (currentUser) {
               loadUserData();
             }
           }, [currentUser]);
 
-         const loadUserData = async () => {
+          const loadUserData = async () => {
             if (!currentUser) return;
             
-            // Load medications
+            let targetUserId = currentUser.id;
+            
+            if (viewingCareRecipient) {
+              targetUserId = viewingCareRecipient.id;
+            }
+            
             const { data: medsData } = await supabase
               .from('medications')
               .select('*')
-              .eq('user_id', currentUser.id)
+              .eq('user_id', targetUserId)
               .order('created_at', { ascending: false });
             if (medsData) setMedications(medsData);
             
-            // Load appointments
             const { data: apptData } = await supabase
               .from('appointments')
               .select('*')
-              .eq('user_id', currentUser.id)
+              .eq('user_id', targetUserId)
               .order('created_at', { ascending: false });
             if (apptData) setAppointments(apptData);
             
-            // Load activities
             const { data: actData } = await supabase
               .from('activities')
               .select('*')
-              .eq('user_id', currentUser.id)
+              .eq('user_id', targetUserId)
               .order('created_at', { ascending: false });
             if (actData) setActivities(actData);
             
-            // Load documents
             const { data: docsData } = await supabase
               .from('documents')
               .select('*')
-              .eq('user_id', currentUser.id)
+              .eq('user_id', targetUserId)
               .order('uploaded_at', { ascending: false });
             if (docsData) setDocuments(docsData);
           };
 
-          const addMedication = async () => {
+          const loadCaregivers = async () => {
+            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            
+            const { data } = await supabase
+              .from('caregivers')
+              .select('caregiver_user_id')
+              .eq('care_circle_id', currentUser.care_circle_id);
+
+            if (data && data.length > 0) {
+              const caregiverIds = data.map(c => c.caregiver_user_id);
+              const { data: caregiversData } = await supabase
+                .from('users')
+                .select('*')
+                .in('id', caregiverIds);
+              
+              setCaregivers(caregiversData || []);
+              loadCaregiverPermissions(caregiverIds);
+            }
+          };
+
+          const loadCaregiverPermissions = async (caregiverIds) => {
+            const { data } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', currentUser.id)
+              .in('caregiver_id', caregiverIds);
+            
+            setCaregiverPermissions(data || []);
+          };
+
+          const loadMyCareRecipients = async () => {
+            if (!currentUser || currentUser.role !== 'caregiver') return;
+            
+            const { data } = await supabase
+              .from('caregivers')
+              .select('care_circle_id')
+              .eq('caregiver_user_id', currentUser.id);
+
+            if (data && data.length > 0) {
+              const circleIds = data.map(c => c.care_circle_id);
+              const { data: recipientsData } = await supabase
+                .from('users')
+                .select('*')
+                .in('care_circle_id', circleIds)
+                .eq('role', 'care_recipient');
+              
+              setMyCareRecipients(recipientsData || []);
+            }
+          };
+
+          const viewCareRecipientData = async (recipient) => {
+            setViewingCareRecipient(recipient);
+            
+            const { data: perms } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', recipient.id)
+              .eq('caregiver_id', currentUser.id)
+              .single();
+            
+            if (!perms) {
+              await supabase.from('caregiver_permissions').insert([{
+                care_recipient_id: recipient.id,
+                caregiver_id: currentUser.id,
+                can_view_documents: true,
+                can_view_medications: true,
+                can_view_appointments: true,
+                can_view_activities: true,
+                receive_quick_texts: true
+              }]);
+            }
+            
+            const { data: medsData } = await supabase
+              .from('medications')
+              .select('*')
+              .eq('user_id', recipient.id)
+              .order('created_at', { ascending: false });
+            if (medsData) setMedications(medsData);
+            
+            const { data: apptData } = await supabase
+              .from('appointments')
+              .select('*')
+              .eq('user_id', recipient.id)
+              .order('created_at', { ascending: false });
+            if (apptData) setAppointments(apptData);
+            
+            const { data: actData } = await supabase
+              .from('activities')
+              .select('*')
+              .eq('user_id', recipient.id)
+              .order('created_at', { ascending: false });
+            if (actData) setActivities(actData);
+            
+            const { data: docsData } = await supabase
+              .from('documents')
+              .select('*')
+              .eq('user_id', recipient.id)
+              .order('uploaded_at', { ascending: false });
+            if (docsData) setDocuments(docsData);
+          };
+
+          const updateCaregiverPermission = async (caregiverId, field, value) => {
+            const { data: existing } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', currentUser.id)
+              .eq('caregiver_id', caregiverId)
+              .maybeSingle();
+            
+            if (existing) {
+              await supabase
+                .from('caregiver_permissions')
+                .update({ [field]: value })
+                .eq('id', existing.id);
+            } else {
+              await supabase.from('caregiver_permissions').insert([{
+                care_recipient_id: currentUser.id,
+                caregiver_id: caregiverId,
+                [field]: value
+              }]);
+            }
+            
+            loadCaregivers();
+          };
+            const addMedication = async () => {
             if (!newMed.medication_name.trim()) {
               alert('Please enter medication name');
               return;
             }
             
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
             const { data, error } = await supabase
               .from('medications')
               .insert([{
-                user_id: currentUser.id,
+                user_id: targetUserId,
                 ...newMed
               }])
               .select()
@@ -197,7 +332,6 @@ const checkUser = async () => {
 
           const deleteMedication = async (id) => {
             if (!confirm('Delete this medication?')) return;
-            
             await supabase.from('medications').delete().eq('id', id);
             setMedications(medications.filter(m => m.id !== id));
           };
@@ -208,10 +342,12 @@ const checkUser = async () => {
               return;
             }
             
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
             const { data, error } = await supabase
               .from('appointments')
               .insert([{
-                user_id: currentUser.id,
+                user_id: targetUserId,
                 ...newAppointment
               }])
               .select()
@@ -228,7 +364,6 @@ const checkUser = async () => {
 
           const deleteAppointment = async (id) => {
             if (!confirm('Delete this appointment?')) return;
-            
             await supabase.from('appointments').delete().eq('id', id);
             setAppointments(appointments.filter(a => a.id !== id));
           };
@@ -239,10 +374,12 @@ const checkUser = async () => {
               return;
             }
             
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
             const { data, error } = await supabase
               .from('activities')
               .insert([{
-                user_id: currentUser.id,
+                user_id: targetUserId,
                 status: 'pending',
                 ...newActivity
               }])
@@ -260,20 +397,12 @@ const checkUser = async () => {
 
           const toggleActivityStatus = async (id, currentStatus) => {
             const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
-            
-            await supabase
-              .from('activities')
-              .update({ status: newStatus })
-              .eq('id', id);
-            
-            setActivities(activities.map(a => 
-              a.id === id ? { ...a, status: newStatus } : a
-            ));
+            await supabase.from('activities').update({ status: newStatus }).eq('id', id);
+            setActivities(activities.map(a => a.id === id ? { ...a, status: newStatus } : a));
           };
 
           const deleteActivity = async (id) => {
             if (!confirm('Delete this activity?')) return;
-            
             await supabase.from('activities').delete().eq('id', id);
             setActivities(activities.filter(a => a.id !== id));
           };
@@ -282,7 +411,6 @@ const checkUser = async () => {
             const file = e.target.files[0];
             if (!file) return;
             
-            // Check file size (max 10MB)
             if (file.size > 10 * 1024 * 1024) {
               alert('File too large. Max 10MB');
               return;
@@ -290,9 +418,11 @@ const checkUser = async () => {
             
             setUploadingFile(true);
             
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
             try {
               const fileExt = file.name.split('.').pop();
-              const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`;
+              const fileName = `${targetUserId}/${Date.now()}.${fileExt}`;
               
               const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('salama-documents')
@@ -300,14 +430,12 @@ const checkUser = async () => {
               
               if (uploadError) throw uploadError;
               
-              const { data: urlData } = supabase.storage
-                .from('salama-documents')
-                .getPublicUrl(fileName);
+              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
               
               const { data: docData, error: docError } = await supabase
                 .from('documents')
                 .insert([{
-                  user_id: currentUser.id,
+                  user_id: targetUserId,
                   document_name: file.name,
                   document_type: fileExt,
                   file_url: urlData.publicUrl,
@@ -365,7 +493,28 @@ const checkUser = async () => {
               alert('Error updating profile: ' + error.message);
             }
           };
-                const handleAuth = async (e) => {
+
+          const sendQuickText = async (text) => {
+            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            
+            await supabase.from('quick_text_alerts').insert([{
+              care_recipient_id: currentUser.id,
+              message_text: text
+            }]);
+            
+            const { data: perms } = await supabase
+              .from('caregiver_permissions')
+              .select('caregiver_id')
+              .eq('care_recipient_id', currentUser.id)
+              .eq('receive_quick_texts', true);
+            
+            if (perms && perms.length > 0) {
+              alert(`Quick text sent to ${perms.length} caregiver(s)!`);
+            } else {
+              alert('Quick text saved (no caregivers enabled to receive)');
+            }
+          };
+            const handleAuth = async (e) => {
             e.preventDefault();
             
             try {
@@ -386,17 +535,12 @@ const checkUser = async () => {
                 localStorage.setItem('salamaUserId', data.id);
                 setShowAuth(false);
                 setAuthForm({ username: '', password: '', name: '', role: '' });
-                
               } else {
-                // Signup mode
-                
-                // Validate all fields
                 if (!authForm.username || !authForm.password || !authForm.name || !authForm.role) {
                   alert('Please fill in all fields');
                   return;
                 }
                 
-                // Check if username exists
                 const { data: existingUser } = await supabase
                   .from('users')
                   .select('*')
@@ -492,29 +636,20 @@ const checkUser = async () => {
                   caregiver_user_id: currentUser.id
                 }]);
               
-              alert(`Successfully joined ${circle.name}'s care circle!`);
-              loadCaregivers();
+              await supabase.from('caregiver_permissions').insert([{
+                care_recipient_id: circle.id,
+                caregiver_id: currentUser.id,
+                can_view_documents: true,
+                can_view_medications: true,
+                can_view_appointments: true,
+                can_view_activities: true,
+                receive_quick_texts: true
+              }]);
+              
+              alert(`Successfully joined ${circle.name}'s care circle! You now have access to their information.`);
+              loadMyCareRecipients();
             } else {
               alert('Invalid QR code');
-            }
-          };
-
-          const loadCaregivers = async () => {
-            if (!currentUser || currentUser.role !== 'care_recipient') return;
-            
-            const { data } = await supabase
-              .from('caregivers')
-              .select('caregiver_user_id')
-              .eq('care_circle_id', currentUser.care_circle_id);
-
-            if (data && data.length > 0) {
-              const caregiverIds = data.map(c => c.caregiver_user_id);
-              const { data: caregiversData } = await supabase
-                .from('users')
-                .select('*')
-                .in('id', caregiverIds);
-              
-              setCaregivers(caregiversData || []);
             }
           };
 
@@ -558,50 +693,11 @@ const checkUser = async () => {
           const logout = () => {
             localStorage.removeItem('salamaUserId');
             setCurrentUser(null);
+            setViewingCareRecipient(null);
             setShowAuth(true);
           };
 
-          const moods = [
-            { emoji: '😡', color: 'bg-red-500' },
-            { emoji: '😟', color: 'bg-orange-500' },
-            { emoji: '😐', color: 'bg-yellow-500' },
-            { emoji: '🙂', color: 'bg-lime-500' },
-            { emoji: '😊', color: 'bg-green-500' }
-          ];
-
-          const recordings = [
-            'Recording 1 - Today 10:00 AM',
-            'Recording 2 - Yesterday 3:00 PM',
-            'Recording 3 - Jan 28 9:00 AM'
-          ];
-
-       
-
-        
-
-          const quickTexts = [
-            'I fell',
-            'Mistreated',
-            'I feel sick',
-            'I need to go to the hospital',
-            '(Customizable message)'
-          ];
-
-          const communities = [
-            { id: 'internal', name: 'Internal (Caregivers)' },
-            { id: 'group1', name: 'External (Support Group 1)' },
-            { id: 'group2', name: 'External (Support Group 2)' },
-            { id: 'group3', name: 'External (Support Group 3)' }
-          ];
-
-          const handleSwipe = () => {
-            if (currentPage === 'home') {
-              setCurrentCardIndex((prev) => (prev + 1) % homeCards.length);
-            } else if (currentPage === 'carenotes') {
-              setCurrentCardIndex((prev) => (prev + 1) % careNotesCards.length);
-            }
-          };
-                const askSalama = async (question) => {
+          const askSalama = async (question) => {
             setProtectionMessages(prev => [...prev, {
               text: question,
               sender: "me",
@@ -611,7 +707,6 @@ const checkUser = async () => {
             setIsAIThinking(true);
 
             try {
-              // Call your Netlify Function instead of calling Gemini directly
               const response = await fetch('/.netlify/functions/ask-salama', {
                 method: 'POST',
                 headers: {
@@ -646,7 +741,6 @@ const checkUser = async () => {
               } else if (data.fallback) {
                 throw new Error('AI service unavailable');
               }
-              
             } catch (error) {
               console.error('AI Error:', error);
               
@@ -675,7 +769,35 @@ const checkUser = async () => {
             setIsAIThinking(false);
           };
 
-          const renderNavBar = () => (
+          const moods = [
+            { emoji: '😡', color: 'bg-red-500' },
+            { emoji: '😟', color: 'bg-orange-500' },
+            { emoji: '😐', color: 'bg-yellow-500' },
+            { emoji: '🙂', color: 'bg-lime-500' },
+            { emoji: '😊', color: 'bg-green-500' }
+          ];
+
+          const recordings = [
+            'Recording 1 - Today 10:00 AM',
+            'Recording 2 - Yesterday 3:00 PM',
+            'Recording 3 - Jan 28 9:00 AM'
+          ];
+
+          const quickTexts = [
+            'I fell',
+            'Mistreated',
+            'I feel sick',
+            'I need to go to the hospital',
+            '(Customizable message)'
+          ];
+
+          const communities = [
+            { id: 'internal', name: 'Internal (Caregivers)' },
+            { id: 'group1', name: 'External (Support Group 1)' },
+            { id: 'group2', name: 'External (Support Group 2)' },
+            { id: 'group3', name: 'External (Support Group 3)' }
+          ];
+            const renderNavBar = () => (
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 z-50">
               {[
                 { id: 'home', label: 'Home', icon: '🏠' },
@@ -704,50 +826,6 @@ const checkUser = async () => {
             </div>
           );
 
-          const renderSwipeCard = (card) => {
-            const totalCards = currentPage === 'home' ? homeCards.length : careNotesCards.length;
-            return (
-              <div className="relative">
-                <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
-                  <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between">
-                    <h3 className="text-2xl font-serif text-black">{card.title}</h3>
-                    <span className="text-sm text-gray-600">{currentCardIndex + 1}/{totalCards}</span>
-                  </div>
-                  <div className="mb-8">
-                    {card.items.map((item, idx) => (
-                      <p key={idx} className="text-xl text-black mb-2">{idx + 1}. {item}</p>
-                    ))}
-                  </div>
-                  {card.preview && (
-                    <div className="mb-8">
-                      <h4 className="text-2xl font-serif text-black text-center mb-4">Preview</h4>
-                      <div className="w-48 h-48 mx-auto border-4 border-black rounded-lg bg-white flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full border-4 border-black"></div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-center gap-8 mt-8">
-                    <button onClick={() => setCurrentCardIndex((prev) => (prev - 1 + totalCards) % totalCards)}>
-                      <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                        <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
-                      </svg>
-                    </button>
-                    <button onClick={handleSwipe}>
-                      <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex justify-center gap-2 mb-4">
-                  {Array.from({ length: totalCards }).map((_, idx) => (
-                    <div key={idx} className={`w-3 h-3 rounded-full ${idx === currentCardIndex ? 'bg-white' : 'bg-white/40'}`} />
-                  ))}
-                </div>
-              </div>
-            );
-          };
-
           if (isLoading) {
             return (
               <div className="w-full h-screen bg-gradient-to-b from-teal-600 to-blue-300 flex items-center justify-center">
@@ -755,7 +833,8 @@ const checkUser = async () => {
               </div>
             );
           }
-                if (!currentUser || showAuth) {
+
+          if (!currentUser || showAuth) {
             return (
               <div className="w-full min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 flex items-center justify-center p-6">
                 <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
@@ -840,7 +919,7 @@ const checkUser = async () => {
 
           return (
             <div className="w-full min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 pb-24 relative">
-              {showSidebar && (
+                {showSidebar && (
                 <>
                   <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSidebar(false)} />
                   <div className="fixed left-0 top-0 bottom-0 w-64 bg-teal-600 z-50 p-6 shadow-2xl">
@@ -850,8 +929,24 @@ const checkUser = async () => {
                         <div className="text-6xl mb-2">{currentUser.avatar}</div>
                         <p className="text-white text-xl font-semibold">{currentUser.name}</p>
                         <p className="text-white/80 text-sm">{currentUser.role === 'care_recipient' ? 'Care Recipient' : 'Caregiver'}</p>
+                        {viewingCareRecipient && (
+                          <div className="mt-4 p-3 bg-white/20 rounded-lg">
+                            <p className="text-white text-sm">Viewing:</p>
+                            <p className="text-white font-semibold">{viewingCareRecipient.name}</p>
+                            <button 
+                              onClick={() => {
+                                setViewingCareRecipient(null);
+                                loadUserData();
+                                setShowSidebar(false);
+                              }}
+                              className="mt-2 text-xs text-white underline"
+                            >
+                              Back to my view
+                            </button>
+                          </div>
+                        )}
                       </div>
-                 <button 
+                      <button 
                         onClick={() => {
                           setProfileForm({ name: currentUser.name, avatar: currentUser.avatar });
                           setShowProfileEdit(true);
@@ -860,7 +955,14 @@ const checkUser = async () => {
                         className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">
                         1. Profile
                       </button>
-                      <button className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">2. Settings</button>
+                      <button 
+                        onClick={() => {
+                          setShowSettings(true);
+                          setShowSidebar(false);
+                        }}
+                        className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">
+                        2. Settings
+                      </button>
                       <button onClick={logout} className="w-full text-left text-2xl text-white hover:bg-white/20 p-3 rounded">3. Log Out</button>
                     </div>
                   </div>
@@ -888,7 +990,6 @@ const checkUser = async () => {
                   <div id="qr-reader" className="flex-1"></div>
                 </div>
               )}
-)}
 
               {showProfileEdit && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
@@ -947,7 +1048,113 @@ const checkUser = async () => {
                   </div>
                 </div>
               )}
-{showAddMedication && (
+                {showSettings && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                  <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-3xl font-serif">Settings</h2>
+                      <button onClick={() => setShowSettings(false)} className="text-2xl">✕</button>
+                    </div>
+                    
+                    {currentUser.role === 'care_recipient' && caregivers.length > 0 && (
+                      <div>
+                        <h3 className="text-2xl font-serif mb-4">Caregiver Permissions</h3>
+                        <p className="text-gray-600 mb-4">Control what each caregiver can see and access</p>
+                        
+                        <div className="space-y-6">
+                          {caregivers.map((cg) => {
+                            const perms = caregiverPermissions.find(p => p.caregiver_id === cg.id) || {
+                              can_view_documents: true,
+                              can_view_medications: true,
+                              can_view_appointments: true,
+                              can_view_activities: true,
+                              receive_quick_texts: true
+                            };
+                            
+                            return (
+                              <div key={cg.id} className="p-4 border-2 border-gray-300 rounded-lg">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <span className="text-3xl">{cg.avatar}</span>
+                                  <div>
+                                    <p className="font-semibold text-lg">{cg.name}</p>
+                                    <p className="text-sm text-gray-600">Caregiver</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                  <label className="flex items-center justify-between">
+                                    <span className="text-gray-700">Can view documents</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={perms.can_view_documents}
+                                      onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_documents', e.target.checked)}
+                                      className="w-5 h-5"
+                                    />
+                                  </label>
+                                  
+                                  <label className="flex items-center justify-between">
+                                    <span className="text-gray-700">Can view medications</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={perms.can_view_medications}
+                                      onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_medications', e.target.checked)}
+                                      className="w-5 h-5"
+                                    />
+                                  </label>
+                                  
+                                  <label className="flex items-center justify-between">
+                                    <span className="text-gray-700">Can view appointments</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={perms.can_view_appointments}
+                                      onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_appointments', e.target.checked)}
+                                      className="w-5 h-5"
+                                    />
+                                  </label>
+                                  
+                                  <label className="flex items-center justify-between">
+                                    <span className="text-gray-700">Can view activities</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={perms.can_view_activities}
+                                      onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_activities', e.target.checked)}
+                                      className="w-5 h-5"
+                                    />
+                                  </label>
+                                  
+                                  <label className="flex items-center justify-between">
+                                    <span className="text-gray-700 font-semibold">Receive quick text alerts</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={perms.receive_quick_texts}
+                                      onChange={(e) => updateCaregiverPermission(cg.id, 'receive_quick_texts', e.target.checked)}
+                                      className="w-5 h-5"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {currentUser.role === 'care_recipient' && caregivers.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 text-lg">No caregivers yet. Share your QR code to add caregivers!</p>
+                      </div>
+                    )}
+                    
+                    {currentUser.role === 'caregiver' && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 text-lg">Settings available for care recipients</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {showAddMedication && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
                   <div className="bg-white rounded-3xl p-8 max-w-md w-full">
                     <h2 className="text-3xl font-serif text-center mb-6">Add Medication</h2>
@@ -1101,7 +1308,7 @@ const checkUser = async () => {
                   </div>
                 </div>
               )}
-              {chatWith && (
+                {chatWith && (
                 <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 flex flex-col">
                   <div className="p-6 flex items-center gap-4 border-b border-white/30">
                     <button onClick={() => setChatWith(null)} className="text-white text-3xl">←</button>
@@ -1143,7 +1350,8 @@ const checkUser = async () => {
                   </div>
                 </div>
               )}
-                    {showProtectionChat && (
+
+              {showProtectionChat && (
                 <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 flex flex-col">
                   <div className="p-6 flex items-center gap-4 border-b border-white/30">
                     <button onClick={() => setShowProtectionChat(false)} className="text-white text-3xl">←</button>
@@ -1294,196 +1502,216 @@ const checkUser = async () => {
                   ))}
                 </div>
               )}
-
-              {currentPage === 'home' && (
+                {currentPage === 'home' && (
                 <div className="p-6">
                   {renderHeader('')}
-                  <div className="text-center mb-8">
-                    <div className="text-6xl font-bold text-white mb-2">
-                      {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </div>
-                    <div className="text-3xl text-black font-serif mb-2">Hello {currentUser.name}</div>
-                    <div className="text-3xl text-black font-serif">How are you?</div>
-                  </div>
-                  <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
                   
-                  {/* Medications Card */}
-                  {currentCardIndex === 0 && (
-                    <div className="relative">
-                      <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
-                        <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
-                          <h3 className="text-2xl font-serif text-black">Medication 💊</h3>
-                          <button 
-                            onClick={() => setShowAddMedication(true)}
-                            className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                  {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && !viewingCareRecipient && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl text-white font-serif mb-4 text-center">Select Care Recipient to View</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {myCareRecipients.map((recipient) => (
+                          <button
+                            key={recipient.id}
+                            onClick={() => viewCareRecipientData(recipient)}
+                            className="bg-white/20 rounded-2xl p-4 hover:bg-white/30 transition-colors"
                           >
-                            + Add
+                            <div className="text-4xl mb-2">{recipient.avatar}</div>
+                            <p className="text-white font-semibold">{recipient.name}</p>
                           </button>
-                        </div>
-                        <div className="mb-8">
-                          {medications.length === 0 ? (
-                            <p className="text-xl text-gray-500 text-center py-8">No medications yet. Tap "+ Add" to create one.</p>
-                          ) : (
-                            medications.slice(0, 5).map((med, idx) => (
-                              <div key={med.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
-                                <div className="flex-1">
-                                  <p className="text-lg text-black font-semibold">{idx + 1}. {med.medication_name}</p>
-                                  {med.dosage && <p className="text-sm text-gray-600">{med.dosage}</p>}
-                                  {med.time && <p className="text-sm text-gray-600">⏰ {med.time}</p>}
-                                </div>
-                                <button 
-                                  onClick={() => deleteMedication(med.id)}
-                                  className="text-red-500 text-xl ml-3"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                        <div className="flex justify-center gap-8 mt-8">
-                          <button onClick={() => setCurrentCardIndex(2)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
-                          <button onClick={() => setCurrentCardIndex(1)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex justify-center gap-2 mb-4">
-                        <div className="w-3 h-3 rounded-full bg-white" />
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Appointments Card */}
-                  {currentCardIndex === 1 && (
-                    <div className="relative">
-                      <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
-                        <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
-                          <h3 className="text-2xl font-serif text-black">Appointments 📅</h3>
-                          <button 
-                            onClick={() => setShowAddAppointment(true)}
-                            className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
-                          >
-                            + Add
-                          </button>
+                  
+                  {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
+                    <>
+                      <div className="text-center mb-8">
+                        <div className="text-6xl font-bold text-white mb-2">
+                          {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </div>
-                        <div className="mb-8">
-                          {appointments.length === 0 ? (
-                            <p className="text-xl text-gray-500 text-center py-8">No appointments yet. Tap "+ Add" to create one.</p>
-                          ) : (
-                            appointments.slice(0, 5).map((appt, idx) => (
-                              <div key={appt.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
-                                <div className="flex-1">
-                                  <p className="text-lg text-black font-semibold">{idx + 1}. {appt.appointment_name}</p>
-                                  {appt.appointment_time && <p className="text-sm text-gray-600">⏰ {appt.appointment_time}</p>}
-                                  {appt.location && <p className="text-sm text-gray-600">📍 {appt.location}</p>}
-                                </div>
-                                <button 
-                                  onClick={() => deleteAppointment(appt.id)}
-                                  className="text-red-500 text-xl ml-3"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            ))
-                          )}
+                        <div className="text-3xl text-black font-serif mb-2">
+                          Hello {viewingCareRecipient ? viewingCareRecipient.name : currentUser.name}
                         </div>
-                        <div className="flex justify-center gap-8 mt-8">
-                          <button onClick={() => setCurrentCardIndex(0)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
-                          <button onClick={() => setCurrentCardIndex(2)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
-                        </div>
+                        <div className="text-3xl text-black font-serif">How are you?</div>
                       </div>
-                      <div className="flex justify-center gap-2 mb-4">
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
-                        <div className="w-3 h-3 rounded-full bg-white" />
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Activities Card */}
-                  {currentCardIndex === 2 && (
-                    <div className="relative">
-                      <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
-                        <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
-                          <h3 className="text-2xl font-serif text-black">Activities 🏃</h3>
-                          <button 
-                            onClick={() => setShowAddActivity(true)}
-                            className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
-                          >
-                            + Add
-                          </button>
-                        </div>
-                        <div className="mb-8">
-                          {activities.length === 0 ? (
-                            <p className="text-xl text-gray-500 text-center py-8">No activities yet. Tap "+ Add" to create one.</p>
-                          ) : (
-                            activities.slice(0, 5).map((act, idx) => (
-                              <div key={act.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
-                                <div className="flex-1 flex items-center gap-3">
-                                  <button 
-                                    onClick={() => toggleActivityStatus(act.id, act.status)}
-                                    className={`w-6 h-6 rounded border-2 ${act.status === 'completed' ? 'bg-green-500 border-green-600' : 'border-gray-400'} flex items-center justify-center`}
-                                  >
-                                    {act.status === 'completed' && <span className="text-white text-sm">✓</span>}
-                                  </button>
-                                  <div>
-                                    <p className={`text-lg ${act.status === 'completed' ? 'line-through text-gray-500' : 'text-black font-semibold'}`}>
-                                      {idx + 1}. {act.activity_name}
-                                    </p>
-                                    {act.time && <p className="text-sm text-gray-600">⏰ {act.time}</p>}
+                      <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
+                      
+                      {currentCardIndex === 0 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Medication 💊</h3>
+                              <button 
+                                onClick={() => setShowAddMedication(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {medications.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No medications yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                medications.slice(0, 5).map((med, idx) => (
+                                  <div key={med.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1">
+                                      <p className="text-lg text-black font-semibold">{idx + 1}. {med.medication_name}</p>
+                                      {med.dosage && <p className="text-sm text-gray-600">{med.dosage}</p>}
+                                      {med.time && <p className="text-sm text-gray-600">⏰ {med.time}</p>}
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteMedication(med.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
                                   </div>
-                                </div>
-                                <button 
-                                  onClick={() => deleteActivity(act.id)}
-                                  className="text-red-500 text-xl ml-3"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            ))
-                          )}
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(2)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(1)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                          </div>
                         </div>
-                        <div className="flex justify-center gap-8 mt-8">
-                          <button onClick={() => setCurrentCardIndex(1)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
-                          <button onClick={() => setCurrentCardIndex(0)}>
-                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
-                            </svg>
-                          </button>
+                      )}
+
+                      {currentCardIndex === 1 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Appointments 📅</h3>
+                              <button 
+                                onClick={() => setShowAddAppointment(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {appointments.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No appointments yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                appointments.slice(0, 5).map((appt, idx) => (
+                                  <div key={appt.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1">
+                                      <p className="text-lg text-black font-semibold">{idx + 1}. {appt.appointment_name}</p>
+                                      {appt.appointment_time && <p className="text-sm text-gray-600">⏰ {appt.appointment_time}</p>}
+                                      {appt.location && <p className="text-sm text-gray-600">📍 {appt.location}</p>}
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteAppointment(appt.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(0)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(2)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex justify-center gap-2 mb-4">
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
-                        <div className="w-3 h-3 rounded-full bg-white/40" />
-                        <div className="w-3 h-3 rounded-full bg-white" />
-                      </div>
-                    </div>
+                      )}
+
+                      {currentCardIndex === 2 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Activities 🏃</h3>
+                              <button 
+                                onClick={() => setShowAddActivity(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {activities.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No activities yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                activities.slice(0, 5).map((act, idx) => (
+                                  <div key={act.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1 flex items-center gap-3">
+                                      <button 
+                                        onClick={() => toggleActivityStatus(act.id, act.status)}
+                                        className={`w-6 h-6 rounded border-2 ${act.status === 'completed' ? 'bg-green-500 border-green-600' : 'border-gray-400'} flex items-center justify-center`}
+                                      >
+                                        {act.status === 'completed' && <span className="text-white text-sm">✓</span>}
+                                      </button>
+                                      <div>
+                                        <p className={`text-lg ${act.status === 'completed' ? 'line-through text-gray-500' : 'text-black font-semibold'}`}>
+                                          {idx + 1}. {act.activity_name}
+                                        </p>
+                                        {act.time && <p className="text-sm text-gray-600">⏰ {act.time}</p>}
+                                      </div>
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteActivity(act.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(1)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(0)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
-
-              {currentPage === 'checkin' && (
+                {currentPage === 'checkin' && (
                 <div className="p-6">
                   {renderHeader('Check-In')}
                   <div className="mb-8">
@@ -1540,7 +1768,7 @@ const checkUser = async () => {
                 </div>
               )}
 
-             {currentPage === 'carenotes' && (
+              {currentPage === 'carenotes' && (
                 <div className="p-6">
                   {renderHeader('Care Notes')}
                   
@@ -1629,8 +1857,7 @@ const checkUser = async () => {
                   </div>
                 </div>
               )}
-
-              {currentPage === 'safety' && (
+                {currentPage === 'safety' && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-12">
                     <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
@@ -1650,7 +1877,11 @@ const checkUser = async () => {
                   <div className="mb-8">
                     <h3 className="text-3xl text-black font-serif mb-4 underline">Quick Texts</h3>
                     {quickTexts.map((text, idx) => (
-                      <button key={idx} className="w-full text-left text-xl text-black mb-3 hover:text-white transition-colors">
+                      <button 
+                        key={idx} 
+                        onClick={() => sendQuickText(text)}
+                        className="w-full text-left text-xl text-black mb-3 hover:text-white transition-colors"
+                      >
                         {idx + 1}. {text}
                       </button>
                     ))}
@@ -1709,7 +1940,7 @@ const checkUser = async () => {
                     </div>
                   )}
 
-                  {caregivers.length > 0 && (
+                  {currentUser.role === 'care_recipient' && caregivers.length > 0 && (
                     <>
                       <h3 className="text-3xl text-white font-serif mb-6 text-center">My Caregivers</h3>
                       <div className="grid grid-cols-2 gap-6 px-8">
@@ -1719,6 +1950,30 @@ const checkUser = async () => {
                               <span className="text-5xl">{cg.avatar}</span>
                             </div>
                             <p className="text-center text-lg text-black font-serif">{cg.name}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && (
+                    <>
+                      <h3 className="text-3xl text-white font-serif mb-6 text-center">My Care Recipients</h3>
+                      <div className="grid grid-cols-2 gap-6 px-8">
+                        {myCareRecipients.map((recipient) => (
+                          <button 
+                            key={recipient.id} 
+                            onClick={() => { 
+                              viewCareRecipientData(recipient);
+                              setCurrentPage('home');
+                            }} 
+                            className="flex flex-col items-center hover:scale-105 transition-transform"
+                          >
+                            <div className="w-32 h-32 rounded-full border-4 border-black bg-gradient-to-b from-teal-400 to-teal-300 mb-3 flex items-center justify-center">
+                              <span className="text-5xl">{recipient.avatar}</span>
+                            </div>
+                            <p className="text-center text-lg text-black font-serif">{recipient.name}</p>
+                            <p className="text-center text-sm text-white mt-1">Tap to view</p>
                           </button>
                         ))}
                       </div>
@@ -1745,6 +2000,3 @@ const checkUser = async () => {
     </script>
 </body>
 </html>
-
-
-

@@ -108,7 +108,18 @@
           const [newAppointment, setNewAppointment] = useState({ appointment_name: '', appointment_time: '', location: '', notes: '' });
           const [newActivity, setNewActivity] = useState({ activity_name: '', time: '', notes: '' });
           const [uploadingFile, setUploadingFile] = useState(false);
-
+const checkUser = async () => {
+            const userId = localStorage.getItem('salamaUserId');
+            if (userId) {
+              const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+              if (data) setCurrentUser(data);
+            }
+            setIsLoading(false);
+          };
           useEffect(() => {
             checkUser();
             const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -1734,5 +1745,6 @@
     </script>
 </body>
 </html>
+
 
 

@@ -106,7 +106,205 @@
           const [newMed, setNewMed] = useState({ medication_name: '', dosage: '', time: '', notes: '' });
           const [newAppointment, setNewAppointment] = useState({ appointment_name: '', appointment_time: '', location: '', notes: '' });
           const [newActivity, setNewActivity] = useState({ activity_name: '', time: '', notes: '' });
+          const [currentUser, setCurrentUser] = useState(null);
+          const [isLoading, setIsLoading] = useState(true);
+          const [showAuth, setShowAuth] = useState(false);
+          const [authMode, setAuthMode] = useState('login');
+          const [authForm, setAuthForm] = useState({ username: '', password: '', name: '', role: '' });
+          const [showPassword, setShowPassword] = useState(false);
+          const [currentPage, setCurrentPage] = useState('home');
+          const [currentCardIndex, setCurrentCardIndex] = useState(0);
+          const [selectedMood, setSelectedMood] = useState(null);
+          const [isRecording, setIsRecording] = useState(false);
+          const [sosPressed, setSosPressed] = useState(false);
+          const [okPressed, setOkPressed] = useState(false);
+          const [showSidebar, setShowSidebar] = useState(false);
+          const [chatWith, setChatWith] = useState(null);
+          const [showCommunities, setShowCommunities] = useState(false);
+          const [chatMessages, setChatMessages] = useState([]);
+          const [messageInput, setMessageInput] = useState('');
+          const [showProtectionChat, setShowProtectionChat] = useState(false);
+          const [protectionMessages, setProtectionMessages] = useState([]);
+          const [protectionInput, setProtectionInput] = useState('');
+          const [isAIThinking, setIsAIThinking] = useState(false);
+          const [backgroundMonitoring, setBackgroundMonitoring] = useState(true);
+          const [monitoringAlerts, setMonitoringAlerts] = useState([]);
+          const [showQRCode, setShowQRCode] = useState(false);
+          const [showQRScanner, setShowQRScanner] = useState(false);
+          const [qrCodeData, setQRCodeData] = useState('');
+          const [currentTime, setCurrentTime] = useState(new Date());
+          const [caregivers, setCaregivers] = useState([]);
+          const [medications, setMedications] = useState([]);
+          const [appointments, setAppointments] = useState([]);
+          const [activities, setActivities] = useState([]);
+          const [documents, setDocuments] = useState([]);
+          const [showAddMedication, setShowAddMedication] = useState(false);
+          const [showAddAppointment, setShowAddAppointment] = useState(false);
+          const [showAddActivity, setShowAddActivity] = useState(false);
+          const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+          const [showProfileEdit, setShowProfileEdit] = useState(false);
+          const [profileForm, setProfileForm] = useState({ name: '', avatar: '' });
+          const [newMed, setNewMed] = useState({ medication_name: '', dosage: '', time: '', notes: '' });
+          const [newAppointment, setNewAppointment] = useState({ appointment_name: '', appointment_time: '', location: '', notes: '' });
+          const [newActivity, setNewActivity] = useState({ activity_name: '', time: '', notes: '' });
           const [uploadingFile, setUploadingFile] = useState(false);
+          const [showSettings, setShowSettings] = useState(false);
+          const [caregiverPermissions, setCaregiverPermissions] = useState([]);
+          const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
+          const [myCareRecipients, setMyCareRecipients] = useState([]);
+          
+          // NEW: Memory & Recording states
+          const [memories, setMemories] = useState([]);
+          const [showAddMemory, setShowAddMemory] = useState(false);
+          const [showMemories, setShowMemories] = useState(false);
+          const [newMemory, setNewMemory] = useState({ title: '', description: '' });
+          const [uploadingMemory, setUploadingMemory] = useState(false);
+          
+          // NEW: Thought recording states
+          const [thoughtRecordings, setThoughtRecordings] = useState([]);
+          const [showThoughtRecordings, setShowThoughtRecordings] = useState(false);
+          const [mediaRecorder, setMediaRecorder] = useState(null);
+          const [audioChunks, setAudioChunks] = useState([]);
+          const [recordingDuration, setRecordingDuration] = useState(0);
+          const [recordingTimer, setRecordingTimer] = useState(null);
+          const loadDocumentShareLinks = async () => {
+            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            
+            const { data } = await supabase
+              .from('document_share_links')
+              .select('*')
+              .eq('care_recipient_id', currentUser.id)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false });
+            
+            if (data) setDocumentShareLinks(data);
+          };
+
+          const createDocumentShareLink = async () => {
+            if (!newShareLink.name.trim()) {
+              alert('Please enter a name for this share link');
+              return;
+            }
+            
+            const shareCode = crypto.randomUUID();
+            
+            let documentIds = [];
+            if (newShareLink.type === 'selected_documents') {
+              documentIds = newShareLink.selected_docs;
+              if (documentIds.length === 0) {
+                alert('Please select at least one document');
+                return;
+              }
+            }
+            
+            const { data, error } = await supabase
+              .from('document_share_links')
+              .insert([{
+                share_code: shareCode,
+                care_recipient_id: currentUser.id,
+                link_name: newShareLink.name,
+                share_type: newShareLink.type,
+                document_ids: documentIds.length > 0 ? documentIds : null,
+                created_by: currentUser.id,
+                is_active: true
+              }])
+              .select()
+              .single();
+            
+            if (data) {
+              setDocumentShareLinks([data, ...documentShareLinks]);
+              setNewShareLink({ name: '', type: 'all_documents', selected_docs: [] });
+              setShowCreateShareLink(false);
+              alert('Share link created! Generate QR code to share.');
+            } else {
+              alert('Error creating share link: ' + error.message);
+            }
+          };
+
+          const deleteShareLink = async (id) => {
+            if (!confirm('Delete this share link? The QR code will stop working.')) return;
+            
+            await supabase
+              .from('document_share_links')
+              .update({ is_active: false })
+              .eq('id', id);
+            
+            setDocumentShareLinks(documentShareLinks.filter(link => link.id !== id));
+          };
+
+          const viewSharedDocuments = async (shareCode) => {
+            try {
+              const { data: linkData } = await supabase
+                .from('document_share_links')
+                .select('*')
+                .eq('share_code', shareCode)
+                .eq('is_active', true)
+                .single();
+              
+              if (!linkData) {
+                alert('Invalid or expired share link');
+                return;
+              }
+              
+              const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar')
+                .eq('id', linkData.care_recipient_id)
+                .single();
+              
+              let docsToShow = [];
+              
+              if (linkData.share_type === 'all_documents') {
+                const { data: allDocs } = await supabase
+                  .from('documents')
+                  .select('*')
+                  .eq('user_id', linkData.care_recipient_id)
+                  .order('uploaded_at', { ascending: false });
+                docsToShow = allDocs || [];
+              } else if (linkData.share_type === 'medications') {
+                const { data: meds } = await supabase
+                  .from('medications')
+                  .select('*')
+                  .eq('user_id', linkData.care_recipient_id)
+                  .order('created_at', { ascending: false });
+                docsToShow = meds || [];
+              } else if (linkData.share_type === 'selected_documents') {
+                const { data: selectedDocs } = await supabase
+                  .from('documents')
+                  .select('*')
+                  .in('id', linkData.document_ids || []);
+                docsToShow = selectedDocs || [];
+              }
+              
+              setSharedDocumentsData({
+                linkName: linkData.link_name,
+                userName: userData?.name || 'Unknown',
+                userAvatar: userData?.avatar || '👤',
+                shareType: linkData.share_type,
+                documents: docsToShow
+              });
+              
+              setShowSharedDocuments(true);
+            } catch (error) {
+              alert('Error loading shared documents: ' + error.message);
+            }
+          };
+
+          const generateShareLinkQR = async (shareCode) => {
+            const qrContainer = document.getElementById('share-qr-container');
+            if (qrContainer) {
+              qrContainer.innerHTML = '';
+              const shareUrl = `${window.location.origin}?share=${shareCode}`;
+              await QRCode.toCanvas(qrContainer, shareUrl, { width: 300 });
+            }
+          };
+          // NEW: Document QR codes
+          const [showDocumentQRManager, setShowDocumentQRManager] = useState(false);
+          const [documentShareLinks, setDocumentShareLinks] = useState([]);
+          const [showCreateShareLink, setShowCreateShareLink] = useState(false);
+          const [newShareLink, setNewShareLink] = useState({ name: '', type: 'all_documents', selected_docs: [] });
+          const [showSharedDocuments, setShowSharedDocuments] = useState(false);
+          const [sharedDocumentsData, setSharedDocumentsData] = useState(null);
           const [showSettings, setShowSettings] = useState(false);
           const [caregiverPermissions, setCaregiverPermissions] = useState([]);
           const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
@@ -123,12 +321,42 @@
             }
             setIsLoading(false);
           };
-
-          useEffect(() => {
+useEffect(() => {
             checkUser();
             const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+            
+            // Check for share code in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareCode = urlParams.get('share');
+            if (shareCode) {
+              viewSharedDocuments(shareCode);
+            }
+            
             return () => clearInterval(timer);
           }, []);
+
+          useEffect(() => {
+            if (currentUser && currentUser.role === 'care_recipient') {
+              loadCaregivers();
+              loadDocumentShareLinks();
+            }
+            if (currentUser && currentUser.role === 'caregiver') {
+              loadMyCareRecipients();
+            }
+            if (currentUser) {
+              loadUserData();
+              loadMemories();
+              loadThoughtRecordings();
+            }
+          }, [currentUser]);
+
+          useEffect(() => {
+            if (viewingCareRecipient) {
+              loadUserData();
+              loadMemories();
+              loadThoughtRecordings();
+            }
+          }, [viewingCareRecipient]);
 
           useEffect(() => {
             if (currentUser && currentUser.role === 'care_recipient') {
@@ -179,7 +407,192 @@
               .order('uploaded_at', { ascending: false });
             if (docsData) setDocuments(docsData);
           };
+const loadMemories = async (userId) => {
+            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
+            
+            const { data } = await supabase
+              .from('memories')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            
+            if (data) setMemories(data);
+          };
 
+          const loadThoughtRecordings = async (userId) => {
+            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
+            
+            const { data } = await supabase
+              .from('thought_recordings')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            
+            if (data) setThoughtRecordings(data);
+          };
+
+          const uploadMemory = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 50 * 1024 * 1024) {
+              alert('File too large. Max 50MB');
+              return;
+            }
+            
+            setUploadingMemory(true);
+            
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
+            try {
+              const fileExt = file.name.split('.').pop();
+              const fileName = `${targetUserId}/memories/${Date.now()}.${fileExt}`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('salama-documents')
+                .upload(fileName, file);
+              
+              if (uploadError) throw uploadError;
+              
+              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+              
+              const fileType = file.type.startsWith('image/') ? 'image' : 'video';
+              
+              const { data: memoryData, error: memoryError } = await supabase
+                .from('memories')
+                .insert([{
+                  user_id: targetUserId,
+                  title: newMemory.title || file.name,
+                  description: newMemory.description,
+                  file_url: urlData.publicUrl,
+                  file_type: fileType,
+                  thumbnail_url: fileType === 'image' ? urlData.publicUrl : null
+                }])
+                .select()
+                .single();
+              
+              if (memoryData) {
+                setMemories([memoryData, ...memories]);
+                setNewMemory({ title: '', description: '' });
+                setShowAddMemory(false);
+                alert('Memory uploaded successfully!');
+              }
+            } catch (error) {
+              alert('Error uploading memory: ' + error.message);
+            } finally {
+              setUploadingMemory(false);
+            }
+          };
+
+          const deleteMemory = async (id, fileUrl) => {
+            if (!confirm('Delete this memory?')) return;
+            
+            try {
+              const filePath = fileUrl.split('/').slice(-3).join('/');
+              await supabase.storage.from('salama-documents').remove([filePath]);
+              await supabase.from('memories').delete().eq('id', id);
+              setMemories(memories.filter(m => m.id !== id));
+            } catch (error) {
+              alert('Error deleting memory: ' + error.message);
+            }
+          };
+
+          const startRecording = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              const recorder = new MediaRecorder(stream);
+              const chunks = [];
+              
+              recorder.ondataavailable = (e) => {
+                chunks.push(e.data);
+                setAudioChunks(chunks);
+              };
+              
+              recorder.onstop = async () => {
+                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                await saveRecording(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+              };
+              
+              recorder.start();
+              setMediaRecorder(recorder);
+              setIsRecording(true);
+              setRecordingDuration(0);
+              
+              const timer = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+              }, 1000);
+              setRecordingTimer(timer);
+            } catch (error) {
+              alert('Could not access microphone: ' + error.message);
+            }
+          };
+
+          const stopRecording = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+              mediaRecorder.stop();
+              setIsRecording(false);
+              if (recordingTimer) {
+                clearInterval(recordingTimer);
+                setRecordingTimer(null);
+              }
+            }
+          };
+
+          const saveRecording = async (audioBlob) => {
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
+            try {
+              const fileName = `${targetUserId}/recordings/${Date.now()}.webm`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('salama-documents')
+                .upload(fileName, audioBlob);
+              
+              if (uploadError) throw uploadError;
+              
+              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+              
+              const { data: recordingData, error: recordingError } = await supabase
+                .from('thought_recordings')
+                .insert([{
+                  user_id: targetUserId,
+                  title: `Recording ${new Date().toLocaleDateString()}`,
+                  audio_url: urlData.publicUrl,
+                  duration_seconds: recordingDuration
+                }])
+                .select()
+                .single();
+              
+              if (recordingData) {
+                setThoughtRecordings([recordingData, ...thoughtRecordings]);
+                setAudioChunks([]);
+                setRecordingDuration(0);
+                alert('Recording saved!');
+              }
+            } catch (error) {
+              alert('Error saving recording: ' + error.message);
+            }
+          };
+
+          const deleteRecording = async (id, audioUrl) => {
+            if (!confirm('Delete this recording?')) return;
+            
+            try {
+              const filePath = audioUrl.split('/').slice(-3).join('/');
+              await supabase.storage.from('salama-documents').remove([filePath]);
+              await supabase.from('thought_recordings').delete().eq('id', id);
+              setThoughtRecordings(thoughtRecordings.filter(r => r.id !== id));
+            } catch (error) {
+              alert('Error deleting recording: ' + error.message);
+            }
+          };
+
+          const formatDuration = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+          };
           const loadCaregivers = async () => {
             if (!currentUser || currentUser.role !== 'care_recipient') return;
             
@@ -2000,3 +2413,4 @@
     </script>
 </body>
 </html>
+

@@ -74,48 +74,6 @@
           const [currentCardIndex, setCurrentCardIndex] = useState(0);
           const [selectedMood, setSelectedMood] = useState(null);
           const [isRecording, setIsRecording] = useState(false);
-          const [showRecordings, setShowRecordings] = useState(false);
-          const [sosPressed, setSosPressed] = useState(false);
-          const [okPressed, setOkPressed] = useState(false);
-          const [showSidebar, setShowSidebar] = useState(false);
-          const [chatWith, setChatWith] = useState(null);
-          const [showCommunities, setShowCommunities] = useState(false);
-          const [chatMessages, setChatMessages] = useState([]);
-          const [messageInput, setMessageInput] = useState('');
-          const [showProtectionChat, setShowProtectionChat] = useState(false);
-          const [protectionMessages, setProtectionMessages] = useState([]);
-          const [protectionInput, setProtectionInput] = useState('');
-          const [isAIThinking, setIsAIThinking] = useState(false);
-          const [backgroundMonitoring, setBackgroundMonitoring] = useState(true);
-          const [monitoringAlerts, setMonitoringAlerts] = useState([]);
-          const [showQRCode, setShowQRCode] = useState(false);
-          const [showQRScanner, setShowQRScanner] = useState(false);
-          const [qrCodeData, setQRCodeData] = useState('');
-          const [currentTime, setCurrentTime] = useState(new Date());
-          const [caregivers, setCaregivers] = useState([]);
-          const [medications, setMedications] = useState([]);
-          const [appointments, setAppointments] = useState([]);
-          const [activities, setActivities] = useState([]);
-          const [documents, setDocuments] = useState([]);
-          const [showAddMedication, setShowAddMedication] = useState(false);
-          const [showAddAppointment, setShowAddAppointment] = useState(false);
-          const [showAddActivity, setShowAddActivity] = useState(false);
-          const [showDocumentUpload, setShowDocumentUpload] = useState(false);
-          const [showProfileEdit, setShowProfileEdit] = useState(false);
-          const [profileForm, setProfileForm] = useState({ name: '', avatar: '' });
-          const [newMed, setNewMed] = useState({ medication_name: '', dosage: '', time: '', notes: '' });
-          const [newAppointment, setNewAppointment] = useState({ appointment_name: '', appointment_time: '', location: '', notes: '' });
-          const [newActivity, setNewActivity] = useState({ activity_name: '', time: '', notes: '' });
-          const [currentUser, setCurrentUser] = useState(null);
-          const [isLoading, setIsLoading] = useState(true);
-          const [showAuth, setShowAuth] = useState(false);
-          const [authMode, setAuthMode] = useState('login');
-          const [authForm, setAuthForm] = useState({ username: '', password: '', name: '', role: '' });
-          const [showPassword, setShowPassword] = useState(false);
-          const [currentPage, setCurrentPage] = useState('home');
-          const [currentCardIndex, setCurrentCardIndex] = useState(0);
-          const [selectedMood, setSelectedMood] = useState(null);
-          const [isRecording, setIsRecording] = useState(false);
           const [sosPressed, setSosPressed] = useState(false);
           const [okPressed, setOkPressed] = useState(false);
           const [showSidebar, setShowSidebar] = useState(false);
@@ -153,21 +111,395 @@
           const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
           const [myCareRecipients, setMyCareRecipients] = useState([]);
           
-          // NEW: Memory & Recording states
           const [memories, setMemories] = useState([]);
           const [showAddMemory, setShowAddMemory] = useState(false);
           const [showMemories, setShowMemories] = useState(false);
           const [newMemory, setNewMemory] = useState({ title: '', description: '' });
           const [uploadingMemory, setUploadingMemory] = useState(false);
           
-          // NEW: Thought recording states
           const [thoughtRecordings, setThoughtRecordings] = useState([]);
           const [showThoughtRecordings, setShowThoughtRecordings] = useState(false);
           const [mediaRecorder, setMediaRecorder] = useState(null);
           const [audioChunks, setAudioChunks] = useState([]);
           const [recordingDuration, setRecordingDuration] = useState(0);
           const [recordingTimer, setRecordingTimer] = useState(null);
-          const loadDocumentShareLinks = async () => {
+          
+          const [showDocumentQRManager, setShowDocumentQRManager] = useState(false);
+          const [documentShareLinks, setDocumentShareLinks] = useState([]);
+          const [showCreateShareLink, setShowCreateShareLink] = useState(false);
+          const [newShareLink, setNewShareLink] = useState({ name: '', type: 'all_documents', selected_docs: [] });
+          const [showSharedDocuments, setShowSharedDocuments] = useState(false);
+          const [sharedDocumentsData, setSharedDocumentsData] = useState(null);
+          const [recipientCardIndex, setRecipientCardIndex] = useState(0);
+            const checkUser = async () => {
+            const userId = localStorage.getItem('salamaUserId');
+            if (userId) {
+              const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+              if (data) setCurrentUser(data);
+            }
+            setIsLoading(false);
+          };
+
+          useEffect(() => {
+            checkUser();
+            const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareCode = urlParams.get('share');
+            if (shareCode) {
+              viewSharedDocuments(shareCode);
+            }
+            
+            return () => clearInterval(timer);
+          }, []);
+
+          useEffect(() => {
+            if (currentUser && currentUser.role === 'care_recipient') {
+              loadCaregivers();
+              loadDocumentShareLinks();
+            }
+            if (currentUser && currentUser.role === 'caregiver') {
+              loadMyCareRecipients();
+            }
+            if (currentUser) {
+              loadUserData();
+              loadMemories();
+              loadThoughtRecordings();
+            }
+          }, [currentUser]);
+
+          useEffect(() => {
+            if (viewingCareRecipient) {
+              loadUserData();
+              loadMemories();
+              loadThoughtRecordings();
+            }
+          }, [viewingCareRecipient]);
+
+          const loadUserData = async () => {
+            if (!currentUser) return;
+            
+            let targetUserId = currentUser.id;
+            
+            if (viewingCareRecipient) {
+              targetUserId = viewingCareRecipient.id;
+            }
+            
+            const { data: medsData } = await supabase
+              .from('medications')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            if (medsData) setMedications(medsData);
+            
+            const { data: apptData } = await supabase
+              .from('appointments')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            if (apptData) setAppointments(apptData);
+            
+            const { data: actData } = await supabase
+              .from('activities')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            if (actData) setActivities(actData);
+            
+            const { data: docsData } = await supabase
+              .from('documents')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('uploaded_at', { ascending: false });
+            if (docsData) setDocuments(docsData);
+          };
+
+          const loadCaregivers = async () => {
+            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            
+            const { data } = await supabase
+              .from('caregivers')
+              .select('caregiver_user_id')
+              .eq('care_circle_id', currentUser.care_circle_id);
+
+            if (data && data.length > 0) {
+              const caregiverIds = data.map(c => c.caregiver_user_id);
+              const { data: caregiversData } = await supabase
+                .from('users')
+                .select('*')
+                .in('id', caregiverIds);
+              
+              setCaregivers(caregiversData || []);
+              loadCaregiverPermissions(caregiverIds);
+            }
+          };
+
+          const loadCaregiverPermissions = async (caregiverIds) => {
+            const { data } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', currentUser.id)
+              .in('caregiver_id', caregiverIds);
+            
+            setCaregiverPermissions(data || []);
+          };
+
+          const loadMyCareRecipients = async () => {
+            if (!currentUser || currentUser.role !== 'caregiver') return;
+            
+            const { data } = await supabase
+              .from('caregivers')
+              .select('care_circle_id')
+              .eq('caregiver_user_id', currentUser.id);
+
+            if (data && data.length > 0) {
+              const circleIds = data.map(c => c.care_circle_id);
+              const { data: recipientsData } = await supabase
+                .from('users')
+                .select('*')
+                .in('care_circle_id', circleIds)
+                .eq('role', 'care_recipient');
+              
+              setMyCareRecipients(recipientsData || []);
+            }
+          };
+
+          const viewCareRecipientData = async (recipient) => {
+            setViewingCareRecipient(recipient);
+            
+            const { data: perms } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', recipient.id)
+              .eq('caregiver_id', currentUser.id)
+              .single();
+            
+            if (!perms) {
+              await supabase.from('caregiver_permissions').insert([{
+                care_recipient_id: recipient.id,
+                caregiver_id: currentUser.id,
+                can_view_documents: true,
+                can_view_medications: true,
+                can_view_appointments: true,
+                can_view_activities: true,
+                receive_quick_texts: true
+              }]);
+            }
+          };
+
+          const updateCaregiverPermission = async (caregiverId, field, value) => {
+            const { data: existing } = await supabase
+              .from('caregiver_permissions')
+              .select('*')
+              .eq('care_recipient_id', currentUser.id)
+              .eq('caregiver_id', caregiverId)
+              .maybeSingle();
+            
+            if (existing) {
+              await supabase
+                .from('caregiver_permissions')
+                .update({ [field]: value })
+                .eq('id', existing.id);
+            } else {
+              await supabase.from('caregiver_permissions').insert([{
+                care_recipient_id: currentUser.id,
+                caregiver_id: caregiverId,
+                [field]: value
+              }]);
+            }
+            
+            loadCaregivers();
+          };
+            const loadMemories = async (userId) => {
+            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
+            
+            const { data } = await supabase
+              .from('memories')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            
+            if (data) setMemories(data);
+          };
+
+          const uploadMemory = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 50 * 1024 * 1024) {
+              alert('File too large. Max 50MB');
+              return;
+            }
+            
+            setUploadingMemory(true);
+            
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
+            try {
+              const fileExt = file.name.split('.').pop();
+              const fileName = `${targetUserId}/memories/${Date.now()}.${fileExt}`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('salama-documents')
+                .upload(fileName, file);
+              
+              if (uploadError) throw uploadError;
+              
+              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+              
+              const fileType = file.type.startsWith('image/') ? 'image' : 'video';
+              
+              const { data: memoryData, error: memoryError } = await supabase
+                .from('memories')
+                .insert([{
+                  user_id: targetUserId,
+                  title: newMemory.title || file.name,
+                  description: newMemory.description,
+                  file_url: urlData.publicUrl,
+                  file_type: fileType,
+                  thumbnail_url: fileType === 'image' ? urlData.publicUrl : null
+                }])
+                .select()
+                .single();
+              
+              if (memoryData) {
+                setMemories([memoryData, ...memories]);
+                setNewMemory({ title: '', description: '' });
+                setShowAddMemory(false);
+                alert('Memory uploaded successfully!');
+              }
+            } catch (error) {
+              alert('Error uploading memory: ' + error.message);
+            } finally {
+              setUploadingMemory(false);
+            }
+          };
+
+          const deleteMemory = async (id, fileUrl) => {
+            if (!confirm('Delete this memory?')) return;
+            
+            try {
+              const filePath = fileUrl.split('/').slice(-3).join('/');
+              await supabase.storage.from('salama-documents').remove([filePath]);
+              await supabase.from('memories').delete().eq('id', id);
+              setMemories(memories.filter(m => m.id !== id));
+            } catch (error) {
+              alert('Error deleting memory: ' + error.message);
+            }
+          };
+            const loadThoughtRecordings = async (userId) => {
+            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
+            
+            const { data } = await supabase
+              .from('thought_recordings')
+              .select('*')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            
+            if (data) setThoughtRecordings(data);
+          };
+
+          const startRecording = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              const recorder = new MediaRecorder(stream);
+              const chunks = [];
+              
+              recorder.ondataavailable = (e) => {
+                chunks.push(e.data);
+                setAudioChunks(chunks);
+              };
+              
+              recorder.onstop = async () => {
+                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                await saveRecording(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+              };
+              
+              recorder.start();
+              setMediaRecorder(recorder);
+              setIsRecording(true);
+              setRecordingDuration(0);
+              
+              const timer = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+              }, 1000);
+              setRecordingTimer(timer);
+            } catch (error) {
+              alert('Could not access microphone: ' + error.message);
+            }
+          };
+
+          const stopRecording = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+              mediaRecorder.stop();
+              setIsRecording(false);
+              if (recordingTimer) {
+                clearInterval(recordingTimer);
+                setRecordingTimer(null);
+              }
+            }
+          };
+
+          const saveRecording = async (audioBlob) => {
+            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+            
+            try {
+              const fileName = `${targetUserId}/recordings/${Date.now()}.webm`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('salama-documents')
+                .upload(fileName, audioBlob);
+              
+              if (uploadError) throw uploadError;
+              
+              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+              
+              const { data: recordingData, error: recordingError } = await supabase
+                .from('thought_recordings')
+                .insert([{
+                  user_id: targetUserId,
+                  title: `Recording ${new Date().toLocaleDateString()}`,
+                  audio_url: urlData.publicUrl,
+                  duration_seconds: recordingDuration
+                }])
+                .select()
+                .single();
+              
+              if (recordingData) {
+                setThoughtRecordings([recordingData, ...thoughtRecordings]);
+                setAudioChunks([]);
+                setRecordingDuration(0);
+                alert('Recording saved!');
+              }
+            } catch (error) {
+              alert('Error saving recording: ' + error.message);
+            }
+          };
+
+          const deleteRecording = async (id, audioUrl) => {
+            if (!confirm('Delete this recording?')) return;
+            
+            try {
+              const filePath = audioUrl.split('/').slice(-3).join('/');
+              await supabase.storage.from('salama-documents').remove([filePath]);
+              await supabase.from('thought_recordings').delete().eq('id', id);
+              setThoughtRecordings(thoughtRecordings.filter(r => r.id !== id));
+            } catch (error) {
+              alert('Error deleting recording: ' + error.message);
+            }
+          };
+
+          const formatDuration = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+          };
+            const loadDocumentShareLinks = async () => {
             if (!currentUser || currentUser.role !== 'care_recipient') return;
             
             const { data } = await supabase
@@ -297,425 +629,6 @@
               const shareUrl = `${window.location.origin}?share=${shareCode}`;
               await QRCode.toCanvas(qrContainer, shareUrl, { width: 300 });
             }
-          };
-          // NEW: Document QR codes
-          const [showDocumentQRManager, setShowDocumentQRManager] = useState(false);
-          const [documentShareLinks, setDocumentShareLinks] = useState([]);
-          const [showCreateShareLink, setShowCreateShareLink] = useState(false);
-          const [newShareLink, setNewShareLink] = useState({ name: '', type: 'all_documents', selected_docs: [] });
-          const [showSharedDocuments, setShowSharedDocuments] = useState(false);
-          const [sharedDocumentsData, setSharedDocumentsData] = useState(null);
-          const [showSettings, setShowSettings] = useState(false);
-          const [caregiverPermissions, setCaregiverPermissions] = useState([]);
-          const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
-          const [myCareRecipients, setMyCareRecipients] = useState([]);
-            const checkUser = async () => {
-            const userId = localStorage.getItem('salamaUserId');
-            if (userId) {
-              const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single();
-              if (data) setCurrentUser(data);
-            }
-            setIsLoading(false);
-          };
-useEffect(() => {
-            checkUser();
-            const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-            
-            // Check for share code in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const shareCode = urlParams.get('share');
-            if (shareCode) {
-              viewSharedDocuments(shareCode);
-            }
-            
-            return () => clearInterval(timer);
-          }, []);
-
-          useEffect(() => {
-            if (currentUser && currentUser.role === 'care_recipient') {
-              loadCaregivers();
-              loadDocumentShareLinks();
-            }
-            if (currentUser && currentUser.role === 'caregiver') {
-              loadMyCareRecipients();
-            }
-            if (currentUser) {
-              loadUserData();
-              loadMemories();
-              loadThoughtRecordings();
-            }
-          }, [currentUser]);
-
-          useEffect(() => {
-            if (viewingCareRecipient) {
-              loadUserData();
-              loadMemories();
-              loadThoughtRecordings();
-            }
-          }, [viewingCareRecipient]);
-
-          useEffect(() => {
-            if (currentUser && currentUser.role === 'care_recipient') {
-              loadCaregivers();
-            }
-            if (currentUser && currentUser.role === 'caregiver') {
-              loadMyCareRecipients();
-            }
-            if (currentUser) {
-              loadUserData();
-            }
-          }, [currentUser]);
-
-          const loadUserData = async () => {
-            if (!currentUser) return;
-            
-            let targetUserId = currentUser.id;
-            
-            if (viewingCareRecipient) {
-              targetUserId = viewingCareRecipient.id;
-            }
-            
-            const { data: medsData } = await supabase
-              .from('medications')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('created_at', { ascending: false });
-            if (medsData) setMedications(medsData);
-            
-            const { data: apptData } = await supabase
-              .from('appointments')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('created_at', { ascending: false });
-            if (apptData) setAppointments(apptData);
-            
-            const { data: actData } = await supabase
-              .from('activities')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('created_at', { ascending: false });
-            if (actData) setActivities(actData);
-            
-            const { data: docsData } = await supabase
-              .from('documents')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('uploaded_at', { ascending: false });
-            if (docsData) setDocuments(docsData);
-          };
-const loadMemories = async (userId) => {
-            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
-            
-            const { data } = await supabase
-              .from('memories')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('created_at', { ascending: false });
-            
-            if (data) setMemories(data);
-          };
-
-          const loadThoughtRecordings = async (userId) => {
-            const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
-            
-            const { data } = await supabase
-              .from('thought_recordings')
-              .select('*')
-              .eq('user_id', targetUserId)
-              .order('created_at', { ascending: false });
-            
-            if (data) setThoughtRecordings(data);
-          };
-
-          const uploadMemory = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            if (file.size > 50 * 1024 * 1024) {
-              alert('File too large. Max 50MB');
-              return;
-            }
-            
-            setUploadingMemory(true);
-            
-            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
-            
-            try {
-              const fileExt = file.name.split('.').pop();
-              const fileName = `${targetUserId}/memories/${Date.now()}.${fileExt}`;
-              
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('salama-documents')
-                .upload(fileName, file);
-              
-              if (uploadError) throw uploadError;
-              
-              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
-              
-              const fileType = file.type.startsWith('image/') ? 'image' : 'video';
-              
-              const { data: memoryData, error: memoryError } = await supabase
-                .from('memories')
-                .insert([{
-                  user_id: targetUserId,
-                  title: newMemory.title || file.name,
-                  description: newMemory.description,
-                  file_url: urlData.publicUrl,
-                  file_type: fileType,
-                  thumbnail_url: fileType === 'image' ? urlData.publicUrl : null
-                }])
-                .select()
-                .single();
-              
-              if (memoryData) {
-                setMemories([memoryData, ...memories]);
-                setNewMemory({ title: '', description: '' });
-                setShowAddMemory(false);
-                alert('Memory uploaded successfully!');
-              }
-            } catch (error) {
-              alert('Error uploading memory: ' + error.message);
-            } finally {
-              setUploadingMemory(false);
-            }
-          };
-
-          const deleteMemory = async (id, fileUrl) => {
-            if (!confirm('Delete this memory?')) return;
-            
-            try {
-              const filePath = fileUrl.split('/').slice(-3).join('/');
-              await supabase.storage.from('salama-documents').remove([filePath]);
-              await supabase.from('memories').delete().eq('id', id);
-              setMemories(memories.filter(m => m.id !== id));
-            } catch (error) {
-              alert('Error deleting memory: ' + error.message);
-            }
-          };
-
-          const startRecording = async () => {
-            try {
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              const recorder = new MediaRecorder(stream);
-              const chunks = [];
-              
-              recorder.ondataavailable = (e) => {
-                chunks.push(e.data);
-                setAudioChunks(chunks);
-              };
-              
-              recorder.onstop = async () => {
-                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-                await saveRecording(audioBlob);
-                stream.getTracks().forEach(track => track.stop());
-              };
-              
-              recorder.start();
-              setMediaRecorder(recorder);
-              setIsRecording(true);
-              setRecordingDuration(0);
-              
-              const timer = setInterval(() => {
-                setRecordingDuration(prev => prev + 1);
-              }, 1000);
-              setRecordingTimer(timer);
-            } catch (error) {
-              alert('Could not access microphone: ' + error.message);
-            }
-          };
-
-          const stopRecording = () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-              mediaRecorder.stop();
-              setIsRecording(false);
-              if (recordingTimer) {
-                clearInterval(recordingTimer);
-                setRecordingTimer(null);
-              }
-            }
-          };
-
-          const saveRecording = async (audioBlob) => {
-            const targetUserId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
-            
-            try {
-              const fileName = `${targetUserId}/recordings/${Date.now()}.webm`;
-              
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('salama-documents')
-                .upload(fileName, audioBlob);
-              
-              if (uploadError) throw uploadError;
-              
-              const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
-              
-              const { data: recordingData, error: recordingError } = await supabase
-                .from('thought_recordings')
-                .insert([{
-                  user_id: targetUserId,
-                  title: `Recording ${new Date().toLocaleDateString()}`,
-                  audio_url: urlData.publicUrl,
-                  duration_seconds: recordingDuration
-                }])
-                .select()
-                .single();
-              
-              if (recordingData) {
-                setThoughtRecordings([recordingData, ...thoughtRecordings]);
-                setAudioChunks([]);
-                setRecordingDuration(0);
-                alert('Recording saved!');
-              }
-            } catch (error) {
-              alert('Error saving recording: ' + error.message);
-            }
-          };
-
-          const deleteRecording = async (id, audioUrl) => {
-            if (!confirm('Delete this recording?')) return;
-            
-            try {
-              const filePath = audioUrl.split('/').slice(-3).join('/');
-              await supabase.storage.from('salama-documents').remove([filePath]);
-              await supabase.from('thought_recordings').delete().eq('id', id);
-              setThoughtRecordings(thoughtRecordings.filter(r => r.id !== id));
-            } catch (error) {
-              alert('Error deleting recording: ' + error.message);
-            }
-          };
-
-          const formatDuration = (seconds) => {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-          };
-          const loadCaregivers = async () => {
-            if (!currentUser || currentUser.role !== 'care_recipient') return;
-            
-            const { data } = await supabase
-              .from('caregivers')
-              .select('caregiver_user_id')
-              .eq('care_circle_id', currentUser.care_circle_id);
-
-            if (data && data.length > 0) {
-              const caregiverIds = data.map(c => c.caregiver_user_id);
-              const { data: caregiversData } = await supabase
-                .from('users')
-                .select('*')
-                .in('id', caregiverIds);
-              
-              setCaregivers(caregiversData || []);
-              loadCaregiverPermissions(caregiverIds);
-            }
-          };
-
-          const loadCaregiverPermissions = async (caregiverIds) => {
-            const { data } = await supabase
-              .from('caregiver_permissions')
-              .select('*')
-              .eq('care_recipient_id', currentUser.id)
-              .in('caregiver_id', caregiverIds);
-            
-            setCaregiverPermissions(data || []);
-          };
-
-          const loadMyCareRecipients = async () => {
-            if (!currentUser || currentUser.role !== 'caregiver') return;
-            
-            const { data } = await supabase
-              .from('caregivers')
-              .select('care_circle_id')
-              .eq('caregiver_user_id', currentUser.id);
-
-            if (data && data.length > 0) {
-              const circleIds = data.map(c => c.care_circle_id);
-              const { data: recipientsData } = await supabase
-                .from('users')
-                .select('*')
-                .in('care_circle_id', circleIds)
-                .eq('role', 'care_recipient');
-              
-              setMyCareRecipients(recipientsData || []);
-            }
-          };
-
-          const viewCareRecipientData = async (recipient) => {
-            setViewingCareRecipient(recipient);
-            
-            const { data: perms } = await supabase
-              .from('caregiver_permissions')
-              .select('*')
-              .eq('care_recipient_id', recipient.id)
-              .eq('caregiver_id', currentUser.id)
-              .single();
-            
-            if (!perms) {
-              await supabase.from('caregiver_permissions').insert([{
-                care_recipient_id: recipient.id,
-                caregiver_id: currentUser.id,
-                can_view_documents: true,
-                can_view_medications: true,
-                can_view_appointments: true,
-                can_view_activities: true,
-                receive_quick_texts: true
-              }]);
-            }
-            
-            const { data: medsData } = await supabase
-              .from('medications')
-              .select('*')
-              .eq('user_id', recipient.id)
-              .order('created_at', { ascending: false });
-            if (medsData) setMedications(medsData);
-            
-            const { data: apptData } = await supabase
-              .from('appointments')
-              .select('*')
-              .eq('user_id', recipient.id)
-              .order('created_at', { ascending: false });
-            if (apptData) setAppointments(apptData);
-            
-            const { data: actData } = await supabase
-              .from('activities')
-              .select('*')
-              .eq('user_id', recipient.id)
-              .order('created_at', { ascending: false });
-            if (actData) setActivities(actData);
-            
-            const { data: docsData } = await supabase
-              .from('documents')
-              .select('*')
-              .eq('user_id', recipient.id)
-              .order('uploaded_at', { ascending: false });
-            if (docsData) setDocuments(docsData);
-          };
-
-          const updateCaregiverPermission = async (caregiverId, field, value) => {
-            const { data: existing } = await supabase
-              .from('caregiver_permissions')
-              .select('*')
-              .eq('care_recipient_id', currentUser.id)
-              .eq('caregiver_id', caregiverId)
-              .maybeSingle();
-            
-            if (existing) {
-              await supabase
-                .from('caregiver_permissions')
-                .update({ [field]: value })
-                .eq('id', existing.id);
-            } else {
-              await supabase.from('caregiver_permissions').insert([{
-                care_recipient_id: currentUser.id,
-                caregiver_id: caregiverId,
-                [field]: value
-              }]);
-            }
-            
-            loadCaregivers();
           };
             const addMedication = async () => {
             if (!newMed.medication_name.trim()) {
@@ -1190,12 +1103,6 @@ const loadMemories = async (userId) => {
             { emoji: '😊', color: 'bg-green-500' }
           ];
 
-          const recordings = [
-            'Recording 1 - Today 10:00 AM',
-            'Recording 2 - Yesterday 3:00 PM',
-            'Recording 3 - Jan 28 9:00 AM'
-          ];
-
           const quickTexts = [
             'I fell',
             'Mistreated',
@@ -1376,7 +1283,19 @@ const loadMemories = async (userId) => {
                         className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">
                         2. Settings
                       </button>
-                      <button onClick={logout} className="w-full text-left text-2xl text-white hover:bg-white/20 p-3 rounded">3. Log Out</button>
+                      {currentUser.role === 'care_recipient' && (
+                        <button 
+                          onClick={() => {
+                            setShowDocumentQRManager(true);
+                            setShowSidebar(false);
+                          }}
+                          className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">
+                          3. Share Links
+                        </button>
+                      )}
+                      <button onClick={logout} className="w-full text-left text-2xl text-white hover:bg-white/20 p-3 rounded">
+                        {currentUser.role === 'care_recipient' ? '4' : '3'}. Log Out
+                      </button>
                     </div>
                   </div>
                 </>
@@ -1567,7 +1486,193 @@ const loadMemories = async (userId) => {
                 </div>
               )}
 
-              {showAddMedication && (
+              {showDocumentQRManager && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                  <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-3xl font-serif">Document Share Links</h2>
+                      <button onClick={() => setShowDocumentQRManager(false)} className="text-2xl">✕</button>
+                    </div>
+                    
+                    <p className="text-gray-600 mb-6">Create QR codes to share specific documents with doctors, therapists, or anyone without adding them to your care circle.</p>
+                    
+                    <button 
+                      onClick={() => setShowCreateShareLink(true)}
+                      className="w-full bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold mb-6"
+                    >
+                      + Create New Share Link
+                    </button>
+                    
+                    {documentShareLinks.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No share links yet. Create one to get started!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {documentShareLinks.map((link) => (
+                          <div key={link.id} className="p-4 border-2 border-gray-300 rounded-lg">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-semibold text-lg">{link.link_name}</p>
+                                <p className="text-sm text-gray-600">
+                                  {link.share_type === 'all_documents' && 'All Documents'}
+                                  {link.share_type === 'medications' && 'Medications List'}
+                                  {link.share_type === 'selected_documents' && 'Selected Documents'}
+                                </p>
+                              </div>
+                              <button 
+                                onClick={() => deleteShareLink(link.id)}
+                                className="text-red-500 text-xl"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                generateShareLinkQR(link.share_code);
+                                setTimeout(() => {
+                                  const qrModal = document.createElement('div');
+                                  qrModal.innerHTML = `
+                                    <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                      <div class="bg-white rounded-3xl p-8 max-w-md" onclick="event.stopPropagation()">
+                                        <h3 class="text-2xl font-serif text-center mb-4">${link.link_name}</h3>
+                                        <div id="share-qr-container" class="flex justify-center mb-6"></div>
+                                        <button onclick="this.closest('.fixed').remove()" class="w-full bg-teal-600 text-white py-3 rounded-lg">Close</button>
+                                      </div>
+                                    </div>
+                                  `;
+                                  document.body.appendChild(qrModal);
+                                  generateShareLinkQR(link.share_code);
+                                }, 100);
+                              }}
+                              className="w-full bg-blue-500 text-white py-2 rounded-lg"
+                            >
+                              Show QR Code
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {showCreateShareLink && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                  <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                    <h2 className="text-3xl font-serif text-center mb-6">Create Share Link</h2>
+                    
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Link Name (e.g., 'For Doctor')"
+                        value={newShareLink.name}
+                        onChange={(e) => setNewShareLink({...newShareLink, name: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <select
+                        value={newShareLink.type}
+                        onChange={(e) => setNewShareLink({...newShareLink, type: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      >
+                        <option value="all_documents">All Documents</option>
+                        <option value="medications">Medications List</option>
+                        <option value="selected_documents">Selected Documents</option>
+                      </select>
+                      
+                      {newShareLink.type === 'selected_documents' && (
+                        <div className="max-h-48 overflow-y-auto border-2 border-gray-300 rounded-lg p-3">
+                          {documents.length === 0 ? (
+                            <p className="text-gray-500 text-sm">No documents available</p>
+                          ) : (
+                            documents.map((doc) => (
+                              <label key={doc.id} className="flex items-center gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={newShareLink.selected_docs.includes(doc.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setNewShareLink({...newShareLink, selected_docs: [...newShareLink.selected_docs, doc.id]});
+                                    } else {
+                                      setNewShareLink({...newShareLink, selected_docs: newShareLink.selected_docs.filter(id => id !== doc.id)});
+                                    }
+                                  }}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm">{doc.document_name}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-4 mt-6">
+                      <button 
+                        onClick={() => {
+                          setShowCreateShareLink(false);
+                          setNewShareLink({ name: '', type: 'all_documents', selected_docs: [] });
+                        }}
+                        className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={createDocumentShareLink}
+                        className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showSharedDocuments && sharedDocumentsData && (
+                <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 p-6 overflow-y-auto">
+                  <div className="max-w-2xl mx-auto">
+                    <div className="bg-white rounded-3xl p-8 mb-6">
+                      <div className="flex items-center gap-4 mb-6">
+                        <span className="text-5xl">{sharedDocumentsData.userAvatar}</span>
+                        <div>
+                          <h2 className="text-3xl font-serif">{sharedDocumentsData.userName}</h2>
+                          <p className="text-lg text-gray-600">{sharedDocumentsData.linkName}</p>
+                        </div>
+                      </div>
+                      
+                      {sharedDocumentsData.documents.length === 0 ? (
+                        <p className="text-gray-500 text-center py-8">No documents available</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {sharedDocumentsData.documents.map((doc, idx) => (
+                            <div key={doc.id} className="p-4 bg-gray-50 rounded-lg">
+                              <p className="font-semibold">{idx + 1}. {doc.document_name || doc.medication_name}</p>
+                              {doc.document_type && (
+                                <p className="text-sm text-gray-600">{doc.document_type.toUpperCase()}</p>
+                              )}
+                              {doc.file_url && (
+                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">View Document</a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        setShowSharedDocuments(false);
+                        setSharedDocumentsData(null);
+                      }}
+                      className="w-full bg-white text-teal-700 py-3 rounded-lg text-lg font-semibold"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+                {showAddMedication && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
                   <div className="bg-white rounded-3xl p-8 max-w-md w-full">
                     <h2 className="text-3xl font-serif text-center mb-6">Add Medication</h2>
@@ -1716,6 +1821,55 @@ const loadMemories = async (userId) => {
                         className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
                       >
                         Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddMemory && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                  <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                    <h2 className="text-3xl font-serif text-center mb-6">Upload Memory</h2>
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Title (optional)"
+                        value={newMemory.title}
+                        onChange={(e) => setNewMemory({...newMemory, title: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      <textarea
+                        placeholder="Description (optional)"
+                        value={newMemory.description}
+                        onChange={(e) => setNewMemory({...newMemory, description: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-24"
+                      />
+                      <div className="border-4 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                        <p className="text-lg text-gray-600 mb-4">Choose a photo or video</p>
+                        <p className="text-sm text-gray-500 mb-4">Max 50MB</p>
+                        <input
+                          type="file"
+                          onChange={uploadMemory}
+                          accept="image/*,video/*"
+                          className="w-full"
+                          disabled={uploadingMemory}
+                        />
+                        {uploadingMemory && (
+                          <p className="text-teal-600 mt-4 font-semibold">Uploading...</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-4 mt-6">
+                      <button 
+                        onClick={() => {
+                          setShowAddMemory(false);
+                          setNewMemory({ title: '', description: '' });
+                        }}
+                        className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold"
+                        disabled={uploadingMemory}
+                      >
+                        Close
                       </button>
                     </div>
                   </div>
@@ -1920,21 +2074,67 @@ const loadMemories = async (userId) => {
                   {renderHeader('')}
                   
                   {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && !viewingCareRecipient && (
-                    <div className="mb-8">
-                      <h3 className="text-2xl text-white font-serif mb-4 text-center">Select Care Recipient to View</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {myCareRecipients.map((recipient) => (
-                          <button
-                            key={recipient.id}
-                            onClick={() => viewCareRecipientData(recipient)}
-                            className="bg-white/20 rounded-2xl p-4 hover:bg-white/30 transition-colors"
-                          >
-                            <div className="text-4xl mb-2">{recipient.avatar}</div>
-                            <p className="text-white font-semibold">{recipient.name}</p>
-                          </button>
-                        ))}
+                    <>
+                      <div className="text-center mb-8">
+                        <div className="text-6xl font-bold text-white mb-2">
+                          {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </div>
+                        <div className="text-3xl text-black font-serif mb-2">Hello {currentUser.name}</div>
+                        <div className="text-3xl text-black font-serif">Your Care Recipients</div>
                       </div>
-                    </div>
+                      
+                      <div className="relative">
+                        <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                          <div className="mb-6 pb-4 border-b-4 border-teal-700">
+                            <div className="flex items-center gap-4 mb-4">
+                              <span className="text-5xl">{myCareRecipients[recipientCardIndex].avatar}</span>
+                              <div>
+                                <h3 className="text-2xl font-serif text-black">{myCareRecipients[recipientCardIndex].name}</h3>
+                                <p className="text-sm text-gray-600">Care Recipient</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mb-6">
+                            <p className="text-lg font-semibold text-black mb-2">Latest Medication:</p>
+                            <p className="text-gray-600">Loading...</p>
+                          </div>
+                          
+                          <div className="mb-6">
+                            <p className="text-lg font-semibold text-black mb-2">Next Appointment:</p>
+                            <p className="text-gray-600">Loading...</p>
+                          </div>
+                          
+                          <button 
+                            onClick={() => {
+                              viewCareRecipientData(myCareRecipients[recipientCardIndex]);
+                            }}
+                            className="w-full bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
+                          >
+                            View Full Details
+                          </button>
+                          
+                          <div className="flex justify-center gap-8 mt-8">
+                            <button onClick={() => setRecipientCardIndex((prev) => (prev - 1 + myCareRecipients.length) % myCareRecipients.length)}>
+                              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                              </svg>
+                            </button>
+                            <button onClick={() => setRecipientCardIndex((prev) => (prev + 1) % myCareRecipients.length)}>
+                              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-center gap-2 mb-4">
+                          {myCareRecipients.map((_, idx) => (
+                            <div key={idx} className={`w-3 h-3 rounded-full ${idx === recipientCardIndex ? 'bg-white' : 'bg-white/40'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                   
                   {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
@@ -2142,51 +2342,136 @@ const loadMemories = async (userId) => {
                     </div>
                     <div className="h-3 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full mx-4"></div>
                   </div>
+                  
                   <div className="mb-8">
                     <h3 className="text-3xl text-black font-serif mb-4">Record Your Thoughts</h3>
-                    <button onClick={() => setIsRecording(!isRecording)} className="flex items-center gap-4 mb-6">
-                      <div className={`w-16 h-16 ${isRecording ? 'bg-red-500' : 'bg-white'} rounded-full flex items-center justify-center transition-colors`}>
+                    <button 
+                      onClick={() => isRecording ? stopRecording() : startRecording()} 
+                      className="flex items-center gap-4 mb-6"
+                    >
+                      <div className={`w-16 h-16 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-white'} rounded-full flex items-center justify-center transition-colors`}>
                         <Mic className="w-8 h-8 text-teal-700" />
                       </div>
-                      <div className="flex-1 h-2 bg-white rounded-full"></div>
+                      <div className="flex-1 h-2 bg-white rounded-full overflow-hidden">
+                        {isRecording && (
+                          <div className="h-full bg-red-500 animate-pulse"></div>
+                        )}
+                      </div>
+                      {isRecording && (
+                        <span className="text-white text-xl font-semibold">{formatDuration(recordingDuration)}</span>
+                      )}
                     </button>
-                    <button onClick={() => setShowRecordings(!showRecordings)} className="text-2xl text-white font-serif mb-6 flex items-center gap-2">
-                      <span>Previous Recordings</span>
-                      <span className={`transform transition-transform ${showRecordings ? 'rotate-180' : ''}`}>▼</span>
+                    
+                    <button 
+                      onClick={() => setShowThoughtRecordings(!showThoughtRecordings)} 
+                      className="text-2xl text-white font-serif mb-6 flex items-center gap-2"
+                    >
+                      <span>Previous Recordings ({thoughtRecordings.length})</span>
+                      <span className={`transform transition-transform ${showThoughtRecordings ? 'rotate-180' : ''}`}>▼</span>
                     </button>
-                    {showRecordings && (
+                    
+                    {showThoughtRecordings && (
                       <div className="bg-white bg-opacity-30 rounded-lg p-4 mb-6">
-                        {recordings.map((rec, idx) => (
-                          <button key={idx} className="w-full text-left text-lg text-black mb-2 hover:text-white transition-colors">
-                            {rec}
-                          </button>
+                        {thoughtRecordings.length === 0 ? (
+                          <p className="text-white text-center py-4">No recordings yet</p>
+                        ) : (
+                          thoughtRecordings.map((rec) => (
+                            <div key={rec.id} className="flex justify-between items-center mb-3 p-3 bg-white/50 rounded-lg">
+                              <div className="flex-1">
+                                <p className="text-lg text-black font-semibold">{rec.title}</p>
+                                <p className="text-sm text-gray-600">{formatDuration(rec.duration_seconds)}</p>
+                                <audio controls className="w-full mt-2" src={rec.audio_url}></audio>
+                              </div>
+                              <button 
+                                onClick={() => deleteRecording(rec.id, rec.audio_url)}
+                                className="text-red-500 text-xl ml-3"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-3xl text-black font-serif">Memories ({memories.length})</h3>
+                      <button 
+                        onClick={() => setShowAddMemory(true)}
+                        className="bg-white text-teal-700 px-4 py-2 rounded-full text-sm font-semibold"
+                      >
+                        + Upload
+                      </button>
+                    </div>
+                    
+                    {memories.length === 0 ? (
+                      <div className="text-center py-12">
+                        <p className="text-white text-xl mb-4">No memories yet</p>
+                        <button 
+                          onClick={() => setShowAddMemory(true)}
+                          className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold"
+                        >
+                          Upload Your First Memory
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-4 px-4">
+                        {memories.map((memory) => (
+                          <div key={memory.id} className="relative">
+                            <button 
+                              onClick={() => {
+                                const modal = document.createElement('div');
+                                modal.innerHTML = `
+                                  <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                    <div class="max-w-4xl w-full" onclick="event.stopPropagation()">
+                                      <div class="text-right mb-4">
+                                        <button onclick="this.closest('.fixed').remove()" class="text-white text-3xl">✕</button>
+                                      </div>
+                                      ${memory.file_type === 'image' 
+                                        ? `<img src="${memory.file_url}" class="w-full rounded-lg" />`
+                                        : `<video src="${memory.file_url}" controls class="w-full rounded-lg"></video>`
+                                      }
+                                      <div class="bg-white rounded-lg p-4 mt-4">
+                                        <h3 class="text-2xl font-semibold mb-2">${memory.title || 'Untitled'}</h3>
+                                        ${memory.description ? `<p class="text-gray-600">${memory.description}</p>` : ''}
+                                        <p class="text-sm text-gray-500 mt-2">${new Date(memory.created_at).toLocaleDateString()}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                `;
+                                document.body.appendChild(modal);
+                              }}
+                              className="aspect-square bg-white rounded-lg border-4 border-black overflow-hidden hover:scale-105 transition-transform"
+                            >
+                              {memory.file_type === 'image' ? (
+                                <img src={memory.file_url} alt={memory.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                  <span className="text-4xl">🎥</span>
+                                </div>
+                              )}
+                            </button>
+                            <button 
+                              onClick={() => deleteMemory(memory.id, memory.file_url)}
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-3xl text-black font-serif mb-6">Memories</h3>
-                    <div className="grid grid-cols-3 gap-4 px-4">
-                      {[1,2,3,4,5,6].map((i) => (
-                        <button key={i} className="aspect-square bg-white rounded-lg border-4 border-black flex items-center justify-center hover:scale-105 transition-transform">
-                          <div className="text-center">
-                            <div className="w-8 h-8 rounded-full border-2 border-black mx-auto mb-2"></div>
-                            <div className="w-12 h-1 bg-black mx-auto mb-1"></div>
-                            <div className="w-10 h-1 bg-black mx-auto"></div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
-
-              {currentPage === 'carenotes' && (
+                {currentPage === 'carenotes' && (
                 <div className="p-6">
                   {renderHeader('Care Notes')}
                   
-                  <div className="mt-20">
-                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                  <div className="mt-8 space-y-6">
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
                       <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
                         <h3 className="text-2xl font-serif text-black">Documents 📁</h3>
                         <button 
@@ -2231,6 +2516,99 @@ const loadMemories = async (userId) => {
                               </div>
                             ))}
                           </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
+                      <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                        <h3 className="text-2xl font-serif text-black">Memories 📸</h3>
+                        <button 
+                          onClick={() => setShowAddMemory(true)}
+                          className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                        >
+                          + Upload
+                        </button>
+                      </div>
+                      <div>
+                        {memories.length === 0 ? (
+                          <p className="text-xl text-gray-500 text-center py-8">No memories yet. Tap "+ Upload" to add one.</p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-3">
+                            {memories.slice(0, 6).map((memory) => (
+                              <button
+                                key={memory.id}
+                                onClick={() => {
+                                  const modal = document.createElement('div');
+                                  modal.innerHTML = `
+                                    <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                      <div class="max-w-4xl w-full" onclick="event.stopPropagation()">
+                                        <div class="text-right mb-4">
+                                          <button onclick="this.closest('.fixed').remove()" class="text-white text-3xl">✕</button>
+                                        </div>
+                                        ${memory.file_type === 'image' 
+                                          ? `<img src="${memory.file_url}" class="w-full rounded-lg" />`
+                                          : `<video src="${memory.file_url}" controls class="w-full rounded-lg"></video>`
+                                        }
+                                        <div class="bg-white rounded-lg p-4 mt-4">
+                                          <h3 class="text-2xl font-semibold mb-2">${memory.title || 'Untitled'}</h3>
+                                          ${memory.description ? `<p class="text-gray-600">${memory.description}</p>` : ''}
+                                          <p class="text-sm text-gray-500 mt-2">${new Date(memory.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+                                  document.body.appendChild(modal);
+                                }}
+                                className="aspect-square bg-gray-200 rounded-lg overflow-hidden hover:scale-105 transition-transform"
+                              >
+                                {memory.file_type === 'image' ? (
+                                  <img src={memory.file_url} alt={memory.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                                    <span className="text-3xl">🎥</span>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {memories.length > 6 && (
+                          <button 
+                            onClick={() => setCurrentPage('checkin')}
+                            className="w-full mt-4 text-teal-600 font-semibold"
+                          >
+                            View All {memories.length} Memories →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
+                      <div className="mb-6 pb-4 border-b-4 border-teal-700">
+                        <h3 className="text-2xl font-serif text-black">Thought Recordings 🎙️</h3>
+                      </div>
+                      <div>
+                        {thoughtRecordings.length === 0 ? (
+                          <p className="text-xl text-gray-500 text-center py-8">No recordings yet. Go to Check-In to record.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {thoughtRecordings.slice(0, 3).map((rec) => (
+                              <div key={rec.id} className="p-4 bg-gray-50 rounded-lg">
+                                <p className="font-semibold text-black">{rec.title}</p>
+                                <p className="text-sm text-gray-600 mb-2">{formatDuration(rec.duration_seconds)}</p>
+                                <audio controls className="w-full" src={rec.audio_url}></audio>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {thoughtRecordings.length > 3 && (
+                          <button 
+                            onClick={() => setCurrentPage('checkin')}
+                            className="w-full mt-4 text-teal-600 font-semibold"
+                          >
+                            View All {thoughtRecordings.length} Recordings →
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2279,6 +2657,7 @@ const loadMemories = async (userId) => {
                     <h1 className="text-4xl font-serif text-white">Safety</h1>
                     <div className="w-14"></div>
                   </div>
+                  
                   <div className="flex justify-center gap-8 mb-12">
                     <button onClick={() => { setOkPressed(true); setTimeout(() => setOkPressed(false), 300); alert('OK status sent!'); }} className={`w-40 h-40 rounded-3xl bg-green-500 flex items-center justify-center shadow-2xl transition-all ${okPressed ? 'scale-95' : 'hover:scale-105'}`}>
                       <span className="text-white text-5xl font-bold">OK</span>
@@ -2287,6 +2666,7 @@ const loadMemories = async (userId) => {
                       <span className="text-white text-5xl font-bold">SOS</span>
                     </button>
                   </div>
+                  
                   <div className="mb-8">
                     <h3 className="text-3xl text-black font-serif mb-4 underline">Quick Texts</h3>
                     {quickTexts.map((text, idx) => (
@@ -2299,6 +2679,7 @@ const loadMemories = async (userId) => {
                       </button>
                     ))}
                   </div>
+                  
                   <div className="mb-8">
                     <h3 className="text-3xl text-black font-serif mb-4 underline">Salama AI Companion</h3>
                     <p className="text-lg text-black mb-4 italic">(Ask Salama anything - safety, questions, or just to chat!)</p>
@@ -2310,6 +2691,7 @@ const loadMemories = async (userId) => {
                       <Keyboard className="w-6 h-6" />
                       <span>• Type</span>
                     </button>
+                    
                     <div className="mt-6 bg-white/30 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -2324,14 +2706,14 @@ const loadMemories = async (userId) => {
                         {backgroundMonitoring ? '✓ AI monitoring active' : 'Tap to enable monitoring'}
                       </p>
                     </div>
+                    
                     <button onClick={() => { setMonitoringAlerts([{ message: "Irregular breathing detected. Heart rate: 95 bpm." }]); setTimeout(() => setMonitoringAlerts([]), 10000); }} className="mt-4 w-full bg-orange-500 text-white px-4 py-2 rounded-lg text-sm">
                       🔬 Demo: Trigger Alert
                     </button>
                   </div>
                 </div>
               )}
-
-              {currentPage === 'carecircle' && (
+                {currentPage === 'carecircle' && (
                 <div className="p-6">
                   {renderHeader('Care Circle')}
                   
@@ -2356,7 +2738,7 @@ const loadMemories = async (userId) => {
                   {currentUser.role === 'care_recipient' && caregivers.length > 0 && (
                     <>
                       <h3 className="text-3xl text-white font-serif mb-6 text-center">My Caregivers</h3>
-                      <div className="grid grid-cols-2 gap-6 px-8">
+                      <div className="grid grid-cols-2 gap-6 px-8 mb-8">
                         {caregivers.map((cg) => (
                           <button key={cg.id} onClick={() => { setChatWith(cg); loadMessages(cg.id); }} className="flex flex-col items-center hover:scale-105 transition-transform">
                             <div className="w-32 h-32 rounded-full border-4 border-black bg-gradient-to-b from-teal-400 to-teal-300 mb-3 flex items-center justify-center">
@@ -2372,7 +2754,7 @@ const loadMemories = async (userId) => {
                   {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && (
                     <>
                       <h3 className="text-3xl text-white font-serif mb-6 text-center">My Care Recipients</h3>
-                      <div className="grid grid-cols-2 gap-6 px-8">
+                      <div className="grid grid-cols-2 gap-6 px-8 mb-8">
                         {myCareRecipients.map((recipient) => (
                           <button 
                             key={recipient.id} 
@@ -2413,4 +2795,3 @@ const loadMemories = async (userId) => {
     </script>
 </body>
 </html>
-

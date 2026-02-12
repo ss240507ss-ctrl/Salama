@@ -2069,73 +2069,214 @@
                   ))}
                 </div>
               )}
-                {currentPage === 'home' && (
+              {currentPage === 'home' && (
                 <div className="p-6">
                   {renderHeader('')}
                   
-                  {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && !viewingCareRecipient && (
-                    <>
-                      <div className="text-center mb-8">
-                        <div className="text-6xl font-bold text-white mb-2">
-                          {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                        </div>
-                        <div className="text-3xl text-black font-serif mb-2">Hello {currentUser.name}</div>
-                        <div className="text-3xl text-black font-serif">Your Care Recipients</div>
+                  <div className="text-center mb-8">
+                    <div className="text-6xl font-bold text-white mb-2">
+                      {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </div>
+                    <div className="text-3xl text-black font-serif mb-2">
+                      Hello {viewingCareRecipient ? viewingCareRecipient.name : currentUser.name}
+                    </div>
+                    <div className="text-2xl text-black font-serif italic">All will be well</div>
+                  </div>
+                  
+                  {currentUser.role === 'caregiver' && !viewingCareRecipient && (
+                    <div className="text-center py-12">
+                      <h2 className="text-4xl font-serif text-white mb-8">Today's Recap</h2>
+                      <div className="bg-white/20 rounded-3xl p-8 mx-8 mb-4">
+                        <p className="text-2xl text-white mb-4">📱</p>
+                        <p className="text-xl text-white">Scan the care recipient's QR code to get their recap</p>
+                        <button 
+                          onClick={startQRScanner}
+                          className="mt-6 bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold"
+                        >
+                          Scan QR Code
+                        </button>
                       </div>
+                    </div>
+                  )}
+                  
+                  {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
+                    <>
+                      <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
                       
-                      <div className="relative">
-                        <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
-                          <div className="mb-6 pb-4 border-b-4 border-teal-700">
-                            <div className="flex items-center gap-4 mb-4">
-                              <span className="text-5xl">{myCareRecipients[recipientCardIndex].avatar}</span>
-                              <div>
-                                <h3 className="text-2xl font-serif text-black">{myCareRecipients[recipientCardIndex].name}</h3>
-                                <p className="text-sm text-gray-600">Care Recipient</p>
-                              </div>
+                      {currentCardIndex === 0 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Medication 💊</h3>
+                              <button 
+                                onClick={() => setShowAddMedication(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {medications.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No medications yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                medications.slice(0, 5).map((med, idx) => (
+                                  <div key={med.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1">
+                                      <p className="text-lg text-black font-semibold">{idx + 1}. {med.medication_name}</p>
+                                      {med.dosage && <p className="text-sm text-gray-600">{med.dosage}</p>}
+                                      {med.time && <p className="text-sm text-gray-600">⏰ {med.time}</p>}
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteMedication(med.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(2)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(1)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
                             </div>
                           </div>
-                          
-                          <div className="mb-6">
-                            <p className="text-lg font-semibold text-black mb-2">Latest Medication:</p>
-                            <p className="text-gray-600">Loading...</p>
-                          </div>
-                          
-                          <div className="mb-6">
-                            <p className="text-lg font-semibold text-black mb-2">Next Appointment:</p>
-                            <p className="text-gray-600">Loading...</p>
-                          </div>
-                          
-                          <button 
-                            onClick={() => {
-                              viewCareRecipientData(myCareRecipients[recipientCardIndex]);
-                            }}
-                            className="w-full bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
-                          >
-                            View Full Details
-                          </button>
-                          
-                          <div className="flex justify-center gap-8 mt-8">
-                            <button onClick={() => setRecipientCardIndex((prev) => (prev - 1 + myCareRecipients.length) % myCareRecipients.length)}>
-                              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                                <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
-                              </svg>
-                            </button>
-                            <button onClick={() => setRecipientCardIndex((prev) => (prev + 1) % myCareRecipients.length)}>
-                              <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
-                                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
-                              </svg>
-                            </button>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
                           </div>
                         </div>
-                        
-                        <div className="flex justify-center gap-2 mb-4">
-                          {myCareRecipients.map((_, idx) => (
-                            <div key={idx} className={`w-3 h-3 rounded-full ${idx === recipientCardIndex ? 'bg-white' : 'bg-white/40'}`} />
-                          ))}
+                      )}
+
+                      {currentCardIndex === 1 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Appointments 📅</h3>
+                              <button 
+                                onClick={() => setShowAddAppointment(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {appointments.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No appointments yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                appointments.slice(0, 5).map((appt, idx) => (
+                                  <div key={appt.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1">
+                                      <p className="text-lg text-black font-semibold">{idx + 1}. {appt.appointment_name}</p>
+                                      {appt.appointment_time && <p className="text-sm text-gray-600">⏰ {appt.appointment_time}</p>}
+                                      {appt.location && <p className="text-sm text-gray-600">📍 {appt.location}</p>}
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteAppointment(appt.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(0)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(2)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {currentCardIndex === 2 && (
+                        <div className="relative">
+                          <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
+                            <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                              <h3 className="text-2xl font-serif text-black">Activities 🏃</h3>
+                              <button 
+                                onClick={() => setShowAddActivity(true)}
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                              >
+                                + Add
+                              </button>
+                            </div>
+                            <div className="mb-8">
+                              {activities.length === 0 ? (
+                                <p className="text-xl text-gray-500 text-center py-8">No activities yet. Tap "+ Add" to create one.</p>
+                              ) : (
+                                activities.slice(0, 5).map((act, idx) => (
+                                  <div key={act.id} className="flex justify-between items-center mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex-1 flex items-center gap-3">
+                                      <button 
+                                        onClick={() => toggleActivityStatus(act.id, act.status)}
+                                        className={`w-6 h-6 rounded border-2 ${act.status === 'completed' ? 'bg-green-500 border-green-600' : 'border-gray-400'} flex items-center justify-center`}
+                                      >
+                                        {act.status === 'completed' && <span className="text-white text-sm">✓</span>}
+                                      </button>
+                                      <div>
+                                        <p className={`text-lg ${act.status === 'completed' ? 'line-through text-gray-500' : 'text-black font-semibold'}`}>
+                                          {idx + 1}. {act.activity_name}
+                                        </p>
+                                        {act.time && <p className="text-sm text-gray-600">⏰ {act.time}</p>}
+                                      </div>
+                                    </div>
+                                    <button 
+                                      onClick={() => deleteActivity(act.id)}
+                                      className="text-red-500 text-xl ml-3"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                            <div className="flex justify-center gap-8 mt-8">
+                              <button onClick={() => setCurrentCardIndex(1)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M19 12H5M5 12L12 5M5 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setCurrentCardIndex(0)}>
+                                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="black" strokeWidth="3"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-center gap-2 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white/40" />
+                            <div className="w-3 h-3 rounded-full bg-white" />
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
+                </div>
+              )}
                   
                   {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
                     <>
@@ -2466,12 +2607,12 @@
                   </div>
                 </div>
               )}
-                {currentPage === 'carenotes' && (
+               {currentPage === 'carenotes' && (
                 <div className="p-6">
                   {renderHeader('Care Notes')}
                   
-                  <div className="mt-8 space-y-6">
-                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
+                  <div className="mt-8">
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4">
                       <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
                         <h3 className="text-2xl font-serif text-black">Documents 📁</h3>
                         <button 
@@ -2481,134 +2622,304 @@
                           + Upload
                         </button>
                       </div>
-                      <div className="mb-8">
+                      
+                      <div className="mb-6">
+                        <p className="text-lg font-semibold text-black mb-3">Categories:</p>
+                        <div className="space-y-2">
+                          <button 
+                            onClick={() => {
+                              const labDocs = documents.filter(d => 
+                                d.document_name.toLowerCase().includes('lab') || 
+                                d.document_name.toLowerCase().includes('test') ||
+                                d.document_name.toLowerCase().includes('result')
+                              );
+                              if (labDocs.length === 0) {
+                                alert('No lab results found');
+                              } else {
+                                const modal = document.createElement('div');
+                                modal.innerHTML = `
+                                  <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                    <div class="bg-white rounded-3xl p-8 max-w-2xl w-full" onclick="event.stopPropagation()">
+                                      <div class="flex justify-between items-center mb-6">
+                                        <h3 class="text-3xl font-serif">Lab Results</h3>
+                                        <button onclick="this.closest('.fixed').remove()" class="text-2xl">✕</button>
+                                      </div>
+                                      <div class="space-y-3 max-h-96 overflow-y-auto">
+                                        ${labDocs.map((doc, idx) => `
+                                          <div class="p-4 bg-gray-50 rounded-lg">
+                                            <p class="font-semibold text-lg">${idx + 1}. ${doc.document_name}</p>
+                                            <p class="text-sm text-gray-600">${new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                            <a href="${doc.file_url}" target="_blank" class="text-blue-500 text-sm">View Document →</a>
+                                          </div>
+                                        `).join('')}
+                                      </div>
+                                    </div>
+                                  </div>
+                                `;
+                                document.body.appendChild(modal);
+                              }
+                            }}
+                            className="w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                          >
+                            1. Lab Results
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              const xrayDocs = documents.filter(d => 
+                                d.document_name.toLowerCase().includes('x-ray') || 
+                                d.document_name.toLowerCase().includes('xray') ||
+                                d.document_name.toLowerCase().includes('scan')
+                              );
+                              if (xrayDocs.length === 0) {
+                                alert('No X-Rays found');
+                              } else {
+                                const modal = document.createElement('div');
+                                modal.innerHTML = `
+                                  <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                    <div class="bg-white rounded-3xl p-8 max-w-2xl w-full" onclick="event.stopPropagation()">
+                                      <div class="flex justify-between items-center mb-6">
+                                        <h3 class="text-3xl font-serif">X-Rays</h3>
+                                        <button onclick="this.closest('.fixed').remove()" class="text-2xl">✕</button>
+                                      </div>
+                                      <div class="space-y-3 max-h-96 overflow-y-auto">
+                                        ${xrayDocs.map((doc, idx) => `
+                                          <div class="p-4 bg-gray-50 rounded-lg">
+                                            <p class="font-semibold text-lg">${idx + 1}. ${doc.document_name}</p>
+                                            <p class="text-sm text-gray-600">${new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                            <a href="${doc.file_url}" target="_blank" class="text-blue-500 text-sm">View Document →</a>
+                                          </div>
+                                        `).join('')}
+                                      </div>
+                                    </div>
+                                  </div>
+                                `;
+                                document.body.appendChild(modal);
+                              }
+                            }}
+                            className="w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                          >
+                            2. X-Rays
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              const mriDocs = documents.filter(d => 
+                                d.document_name.toLowerCase().includes('mri') || 
+                                d.document_name.toLowerCase().includes('ct') ||
+                                d.document_name.toLowerCase().includes('ultrasound')
+                              );
+                              if (mriDocs.length === 0) {
+                                alert('No MRIs found');
+                              } else {
+                                const modal = document.createElement('div');
+                                modal.innerHTML = `
+                                  <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                    <div class="bg-white rounded-3xl p-8 max-w-2xl w-full" onclick="event.stopPropagation()">
+                                      <div class="flex justify-between items-center mb-6">
+                                        <h3 class="text-3xl font-serif">MRIs</h3>
+                                        <button onclick="this.closest('.fixed').remove()" class="text-2xl">✕</button>
+                                      </div>
+                                      <div class="space-y-3 max-h-96 overflow-y-auto">
+                                        ${mriDocs.map((doc, idx) => `
+                                          <div class="p-4 bg-gray-50 rounded-lg">
+                                            <p class="font-semibold text-lg">${idx + 1}. ${doc.document_name}</p>
+                                            <p class="text-sm text-gray-600">${new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                            <a href="${doc.file_url}" target="_blank" class="text-blue-500 text-sm">View Document →</a>
+                                          </div>
+                                        `).join('')}
+                                      </div>
+                                    </div>
+                                  </div>
+                                `;
+                                document.body.appendChild(modal);
+                              }
+                            }}
+                            className="w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                          >
+                            3. MRIs
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              if (documents.length === 0) {
+                                alert('No documents found');
+                              } else {
+                                const modal = document.createElement('div');
+                                modal.innerHTML = `
+                                  <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onclick="this.remove()">
+                                    <div class="bg-white rounded-3xl p-8 max-w-2xl w-full" onclick="event.stopPropagation()">
+                                      <div class="flex justify-between items-center mb-6">
+                                        <h3 class="text-3xl font-serif">All Documents</h3>
+                                        <button onclick="this.closest('.fixed').remove()" class="text-2xl">✕</button>
+                                      </div>
+                                      <div class="space-y-3 max-h-96 overflow-y-auto">
+                                        ${documents.map((doc, idx) => `
+                                          <div class="p-4 bg-gray-50 rounded-lg">
+                                            <p class="font-semibold text-lg">${idx + 1}. ${doc.document_name}</p>
+                                            <p class="text-sm text-gray-600">${new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                            <a href="${doc.file_url}" target="_blank" class="text-blue-500 text-sm">View Document →</a>
+                                          </div>
+                                        `).join('')}
+                                      </div>
+                                    </div>
+                                  </div>
+                                `;
+                                document.body.appendChild(modal);
+                              }
+                            }}
+                            className="w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                          >
+                            4. All Documents
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-4 border-t-2 border-gray-300">
+                        <p className="text-lg font-semibold text-black mb-3 underline">Preview</p>
                         {documents.length === 0 ? (
-                          <p className="text-xl text-gray-500 text-center py-8">No documents yet. Tap "+ Upload" to add one.</p>
+                          <div className="text-center py-8 bg-gray-50 rounded-lg">
+                            <span className="text-6xl mb-4 block">📄</span>
+                            <p className="text-gray-500">No documents yet</p>
+                          </div>
                         ) : (
-                          <div className="space-y-3">
-                            {documents.map((doc, idx) => (
-                              <div key={doc.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                                <div className="flex-1">
-                                  <p className="text-lg text-black font-semibold">{idx + 1}. {doc.document_name}</p>
-                                  <p className="text-sm text-gray-600">
-                                    {doc.document_type?.toUpperCase()} • {(doc.file_size / 1024).toFixed(0)} KB
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {new Date(doc.uploaded_at).toLocaleDateString()}
-                                  </p>
-                                </div>
-                                <div className="flex gap-2">
-                                  <a 
-                                    href={doc.file_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 text-xl"
-                                  >
-                                    👁️
-                                  </a>
-                                  <button 
-                                    onClick={() => deleteDocument(doc.id, doc.file_url)}
-                                    className="text-red-500 text-xl"
-                                  >
-                                    🗑️
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="font-semibold text-black mb-2">Latest: {documents[0].document_name}</p>
+                            <p className="text-sm text-gray-600 mb-2">Uploaded: {new Date(documents[0].uploaded_at).toLocaleDateString()}</p>
+                            <a href={documents[0].file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
+                              View Document →
+                            </a>
                           </div>
                         )}
                       </div>
                     </div>
                     
-                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4 mt-6">
                       <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
-                        <h3 className="text-2xl font-serif text-black">Memories 📸</h3>
+                        <h3 className="text-2xl font-serif text-black">Medication 💊</h3>
                         <button 
-                          onClick={() => setShowAddMemory(true)}
+                          onClick={() => setShowAddMedication(true)}
+                          className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                      
+                      <div className="mb-6">
+                        <p className="text-lg font-semibold text-black mb-3">All Medications:</p>
+                        {medications.length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No medications added yet</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {medications.slice(0, 3).map((med, idx) => (
+                              <div key={med.id} className="p-3 bg-gray-100 rounded-lg">
+                                <p className="font-semibold">{idx + 1}. {med.medication_name}</p>
+                                {med.dosage && <p className="text-sm text-gray-600">{med.dosage}</p>}
+                                {med.time && <p className="text-sm text-gray-600">⏰ {med.time}</p>}
+                              </div>
+                            ))}
+                            {medications.length > 3 && (
+                              <button 
+                                onClick={() => setCurrentPage('home')}
+                                className="w-full text-teal-600 font-semibold text-sm"
+                              >
+                                View All {medications.length} Medications →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="pt-4 border-t-2 border-gray-300">
+                        <p className="text-lg font-semibold text-black mb-3 underline">Preview</p>
+                        {medications.length === 0 ? (
+                          <div className="text-center py-8 bg-gray-50 rounded-lg">
+                            <span className="text-6xl mb-4 block">💊</span>
+                            <p className="text-gray-500">No medications yet</p>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="font-semibold text-black mb-2">{medications[0].medication_name}</p>
+                            {medications[0].dosage && <p className="text-sm text-gray-600">Dosage: {medications[0].dosage}</p>}
+                            {medications[0].time && <p className="text-sm text-gray-600">Time: {medications[0].time}</p>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8 mb-4 mt-6">
+                      <div className="mb-6 pb-4 border-b-4 border-teal-700 flex justify-between items-center">
+                        <h3 className="text-2xl font-serif text-black">Other Expenses 💰</h3>
+                        <button 
+                          onClick={() => setShowDocumentUpload(true)}
                           className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
                         >
                           + Upload
                         </button>
                       </div>
-                      <div>
-                        {memories.length === 0 ? (
-                          <p className="text-xl text-gray-500 text-center py-8">No memories yet. Tap "+ Upload" to add one.</p>
+                      
+                      <div className="mb-6">
+                        <p className="text-lg font-semibold text-black mb-3">Expense Documents:</p>
+                        {documents.filter(d => 
+                          d.document_name.toLowerCase().includes('expense') || 
+                          d.document_name.toLowerCase().includes('receipt') ||
+                          d.document_type === 'xlsx' ||
+                          d.document_type === 'xls' ||
+                          d.document_type === 'csv'
+                        ).length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No expense documents yet. Upload Excel/CSV files here.</p>
                         ) : (
-                          <div className="grid grid-cols-3 gap-3">
-                            {memories.slice(0, 6).map((memory) => (
-                              <button
-                                key={memory.id}
-                                onClick={() => {
-                                  const modal = document.createElement('div');
-                                  modal.innerHTML = `
-                                    <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6" onclick="this.remove()">
-                                      <div class="max-w-4xl w-full" onclick="event.stopPropagation()">
-                                        <div class="text-right mb-4">
-                                          <button onclick="this.closest('.fixed').remove()" class="text-white text-3xl">✕</button>
-                                        </div>
-                                        ${memory.file_type === 'image' 
-                                          ? `<img src="${memory.file_url}" class="w-full rounded-lg" />`
-                                          : `<video src="${memory.file_url}" controls class="w-full rounded-lg"></video>`
-                                        }
-                                        <div class="bg-white rounded-lg p-4 mt-4">
-                                          <h3 class="text-2xl font-semibold mb-2">${memory.title || 'Untitled'}</h3>
-                                          ${memory.description ? `<p class="text-gray-600">${memory.description}</p>` : ''}
-                                          <p class="text-sm text-gray-500 mt-2">${new Date(memory.created_at).toLocaleDateString()}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  `;
-                                  document.body.appendChild(modal);
-                                }}
-                                className="aspect-square bg-gray-200 rounded-lg overflow-hidden hover:scale-105 transition-transform"
-                              >
-                                {memory.file_type === 'image' ? (
-                                  <img src={memory.file_url} alt={memory.title} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                                    <span className="text-3xl">🎥</span>
-                                  </div>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {memories.length > 6 && (
-                          <button 
-                            onClick={() => setCurrentPage('checkin')}
-                            className="w-full mt-4 text-teal-600 font-semibold"
-                          >
-                            View All {memories.length} Memories →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-teal-700 mx-8">
-                      <div className="mb-6 pb-4 border-b-4 border-teal-700">
-                        <h3 className="text-2xl font-serif text-black">Thought Recordings 🎙️</h3>
-                      </div>
-                      <div>
-                        {thoughtRecordings.length === 0 ? (
-                          <p className="text-xl text-gray-500 text-center py-8">No recordings yet. Go to Check-In to record.</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {thoughtRecordings.slice(0, 3).map((rec) => (
-                              <div key={rec.id} className="p-4 bg-gray-50 rounded-lg">
-                                <p className="font-semibold text-black">{rec.title}</p>
-                                <p className="text-sm text-gray-600 mb-2">{formatDuration(rec.duration_seconds)}</p>
-                                <audio controls className="w-full" src={rec.audio_url}></audio>
+                          <div className="space-y-2">
+                            {documents.filter(d => 
+                              d.document_name.toLowerCase().includes('expense') || 
+                              d.document_name.toLowerCase().includes('receipt') ||
+                              d.document_type === 'xlsx' ||
+                              d.document_type === 'xls' ||
+                              d.document_type === 'csv'
+                            ).slice(0, 3).map((doc, idx) => (
+                              <div key={doc.id} className="p-3 bg-gray-100 rounded-lg">
+                                <p className="font-semibold">{idx + 1}. {doc.document_name}</p>
+                                <p className="text-sm text-gray-600">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
+                                  View →
+                                </a>
                               </div>
                             ))}
                           </div>
                         )}
-                        {thoughtRecordings.length > 3 && (
-                          <button 
-                            onClick={() => setCurrentPage('checkin')}
-                            className="w-full mt-4 text-teal-600 font-semibold"
-                          >
-                            View All {thoughtRecordings.length} Recordings →
-                          </button>
+                      </div>
+                      
+                      <div className="pt-4 border-t-2 border-gray-300">
+                        <p className="text-lg font-semibold text-black mb-3 underline">Preview</p>
+                        {documents.filter(d => 
+                          d.document_name.toLowerCase().includes('expense') || 
+                          d.document_type === 'xlsx' ||
+                          d.document_type === 'xls'
+                        ).length === 0 ? (
+                          <div className="text-center py-8 bg-gray-50 rounded-lg">
+                            <span className="text-6xl mb-4 block">💰</span>
+                            <p className="text-gray-500">No expense sheets yet</p>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="font-semibold text-black mb-2">
+                              {documents.filter(d => 
+                                d.document_name.toLowerCase().includes('expense') || 
+                                d.document_type === 'xlsx'
+                              )[0].document_name}
+                            </p>
+                            <a 
+                              href={documents.filter(d => 
+                                d.document_name.toLowerCase().includes('expense') || 
+                                d.document_type === 'xlsx'
+                              )[0].file_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-500 text-sm"
+                            >
+                              View Expense Sheet →
+                            </a>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2795,3 +3106,4 @@
     </script>
 </body>
 </html>
+

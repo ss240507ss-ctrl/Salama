@@ -2836,8 +2836,11 @@
                   {renderHeader('Care Circle')}
                   
                   {currentUser.role === 'care_recipient' && (
-                    <div className="mb-8 text-center">
-                      <button onClick={() => { generateQRCode(currentUser.care_circle_id); setShowQRCode(true); }} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
+  <div className="mb-8 text-center">
+    <button onClick={() => { 
+      setShowQRCode(true);
+      setTimeout(() => generateQRCode(currentUser.care_circle_id), 100);
+    }} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
                         📱 Show My QR Code
                       </button>
                       <p className="text-white">Share this with caregivers to add them to your circle</p>
@@ -2913,3 +2916,4 @@
     </script>
 </body>
 </html>
+

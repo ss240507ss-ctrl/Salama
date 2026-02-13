@@ -110,20 +110,16 @@
           const [caregiverPermissions, setCaregiverPermissions] = useState([]);
           const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
           const [myCareRecipients, setMyCareRecipients] = useState([]);
-          
           const [memories, setMemories] = useState([]);
           const [showAddMemory, setShowAddMemory] = useState(false);
-          const [showMemories, setShowMemories] = useState(false);
           const [newMemory, setNewMemory] = useState({ title: '', description: '' });
           const [uploadingMemory, setUploadingMemory] = useState(false);
-          
           const [thoughtRecordings, setThoughtRecordings] = useState([]);
           const [showThoughtRecordings, setShowThoughtRecordings] = useState(false);
           const [mediaRecorder, setMediaRecorder] = useState(null);
           const [audioChunks, setAudioChunks] = useState([]);
           const [recordingDuration, setRecordingDuration] = useState(0);
           const [recordingTimer, setRecordingTimer] = useState(null);
-          
           const [showDocumentQRManager, setShowDocumentQRManager] = useState(false);
           const [documentShareLinks, setDocumentShareLinks] = useState([]);
           const [showCreateShareLink, setShowCreateShareLink] = useState(false);
@@ -1485,8 +1481,7 @@
                   </div>
                 </div>
               )}
-
-              {showDocumentQRManager && (
+                {showDocumentQRManager && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
                   <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
                     <div className="flex justify-between items-center mb-6">
@@ -2069,7 +2064,7 @@
                   ))}
                 </div>
               )}
-              {currentPage === 'home' && (
+                {currentPage === 'home' && (
                 <div className="p-6">
                   {renderHeader('')}
                   
@@ -2097,6 +2092,7 @@
                         </button>
                       </div>
                     </div>
+                  )}
                   
                   {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
                     <>
@@ -2276,7 +2272,6 @@
                   )}
                 </div>
               )}
-                  
                 {currentPage === 'checkin' && (
                 <div className="p-6">
                   {renderHeader('Check-In')}
@@ -2419,7 +2414,7 @@
                   </div>
                 </div>
               )}
-               {currentPage === 'carenotes' && (
+        {currentPage === 'carenotes' && (
                 <div className="p-6">
                   {renderHeader('Care Notes')}
                   
@@ -2750,7 +2745,7 @@
                         <input
                           type="file"
                           onChange={uploadDocument}
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx,.xls,.csv"
                           className="w-full"
                           disabled={uploadingFile}
                         />
@@ -2771,7 +2766,7 @@
                   </div>
                 </div>
               )}
-                {currentPage === 'safety' && (
+    {currentPage === 'safety' && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-12">
                     <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
@@ -2836,7 +2831,7 @@
                   </div>
                 </div>
               )}
-                {currentPage === 'carecircle' && (
+    {currentPage === 'carecircle' && (
                 <div className="p-6">
                   {renderHeader('Care Circle')}
                   
@@ -2918,6 +2913,3 @@
     </script>
 </body>
 </html>
-
-
-

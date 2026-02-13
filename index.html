@@ -916,28 +916,46 @@
             }
           };
 
-         const generateQRCode = async (circleId) => {
+        const generateQRCode = async (circleId) => {
             const qrContainer = document.getElementById('qr-code-container');
-            if (qrContainer) {
-              qrContainer.innerHTML = '';
-              try {
-                const canvas = document.createElement('canvas');
-                await QRCode.toCanvas(canvas, circleId, { 
-                  width: 300,
-                  margin: 2,
-                  color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                  }
-                });
-                qrContainer.appendChild(canvas);
-              } catch (error) {
-                console.error('QR Code generation error:', error);
-                qrContainer.innerHTML = '<p class="text-red-500">Error generating QR code</p>';
-              }
-            } else {
+            if (!qrContainer) {
               console.error('QR container not found');
+              return;
             }
+            
+            qrContainer.innerHTML = '';
+            
+            try {
+              // Check if QRCode library is loaded
+              if (typeof QRCode === 'undefined') {
+                qrContainer.innerHTML = '<p class="text-red-500">QR Code library not loaded. Please refresh the page.</p>';
+                return;
+              }
+              
+              // Create canvas element
+              const canvas = document.createElement('canvas');
+              canvas.width = 300;
+              canvas.height = 300;
+              
+              // Generate QR code
+              QRCode.toCanvas(canvas, circleId, {
+                width: 300,
+                margin: 2,
+                errorCorrectionLevel: 'M'
+              }, function(error) {
+                if (error) {
+                  console.error('QR generation error:', error);
+                  qrContainer.innerHTML = '<p class="text-red-500">Failed to generate QR code: ' + error.message + '</p>';
+                } else {
+                  qrContainer.appendChild(canvas);
+                }
+              });
+              
+            } catch (error) {
+              console.error('QR Code generation error:', error);
+              qrContainer.innerHTML = '<p class="text-red-500">Error: ' + error.message + '</p>';
+            }
+            
             setQRCodeData(circleId);
           };
           const startQRScanner = () => {
@@ -2854,7 +2872,7 @@
   <div className="mb-8 text-center">
    <button onClick={() => { 
   setShowQRCode(true);
-  setTimeout(() => generateQRCode(currentUser.care_circle_id), 200);
+  setTimeout(() => generateQRCode(currentUser.care_circle_id), 500);
 }} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
                         📱 Show My QR Code
                       </button>
@@ -2931,5 +2949,6 @@
     </script>
 </body>
 </html>
+
 
 

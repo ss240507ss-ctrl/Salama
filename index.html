@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
@@ -916,7 +916,7 @@
             }
           };
 
-        const generateQRCode = async (circleId) => {
+       const generateQRCode = async (circleId) => {
             const qrContainer = document.getElementById('qr-code-container');
             if (!qrContainer) {
               console.error('QR container not found');
@@ -928,32 +928,35 @@
             try {
               // Check if QRCode library is loaded
               if (typeof QRCode === 'undefined') {
-                qrContainer.innerHTML = '<p class="text-red-500">QR Code library not loaded. Please refresh the page.</p>';
+                qrContainer.innerHTML = `
+                  <div class="text-center">
+                    <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
+                    <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
+                    <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
+                  </div>
+                `;
                 return;
               }
               
-              // Create canvas element
-              const canvas = document.createElement('canvas');
-              canvas.width = 300;
-              canvas.height = 300;
-              
-              // Generate QR code
-              QRCode.toCanvas(canvas, circleId, {
+              // Create QR code using QRCode.js
+              new QRCode(qrContainer, {
+                text: circleId,
                 width: 300,
-                margin: 2,
-                errorCorrectionLevel: 'M'
-              }, function(error) {
-                if (error) {
-                  console.error('QR generation error:', error);
-                  qrContainer.innerHTML = '<p class="text-red-500">Failed to generate QR code: ' + error.message + '</p>';
-                } else {
-                  qrContainer.appendChild(canvas);
-                }
+                height: 300,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
               });
               
             } catch (error) {
               console.error('QR Code generation error:', error);
-              qrContainer.innerHTML = '<p class="text-red-500">Error: ' + error.message + '</p>';
+              qrContainer.innerHTML = `
+                <div class="text-center">
+                  <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
+                  <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
+                  <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
+                </div>
+              `;
             }
             
             setQRCodeData(circleId);
@@ -2949,6 +2952,7 @@
     </script>
 </body>
 </html>
+
 
 
 

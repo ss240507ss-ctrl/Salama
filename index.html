@@ -7,14 +7,14 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Salama">
-    <title>Salama</title>
+    <title>Salama - Care Coordination Platform</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d9488">
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
@@ -31,6 +31,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZ3NtaHFwaXh2cXhreW5wb3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMDA3NjMsImV4cCI6MjA4NTY3Njc2M30.sbscrW-ho5JnwtAo1732bb5q5kBfkkzxrTmPjAIe8u4';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        // SVG Icons
         const User = ({className}) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -63,7 +64,15 @@
             </svg>
         );
 
+        const Briefcase = ({className}) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+        );
+
         const SalamaApp = () => {
+          // Existing state
           const [currentUser, setCurrentUser] = useState(null);
           const [isLoading, setIsLoading] = useState(true);
           const [showAuth, setShowAuth] = useState(false);
@@ -126,7 +135,50 @@
           const [newShareLink, setNewShareLink] = useState({ name: '', type: 'all_documents', selected_docs: [] });
           const [showSharedDocuments, setShowSharedDocuments] = useState(false);
           const [sharedDocumentsData, setSharedDocumentsData] = useState(null);
-          const [recipientCardIndex, setRecipientCardIndex] = useState(0);
+
+          // NEW PROFESSIONAL FEATURES STATE
+          const [isProfessional, setIsProfessional] = useState(false);
+          const [professionalProfile, setProfessionalProfile] = useState(null);
+          const [showProfessionalSetup, setShowProfessionalSetup] = useState(false);
+          const [professionalForm, setProfessionalForm] = useState({
+            full_name: '',
+            professional_type: 'nurse',
+            license_number: '',
+            years_experience: '',
+            languages_spoken: [],
+            location: '',
+            city: '',
+            state: '',
+            country: '',
+            bio: '',
+            hourly_rate: ''
+          });
+          const [careRequests, setCareRequests] = useState([]);
+          const [showCareRequestModal, setShowCareRequestModal] = useState(false);
+          const [newCareRequest, setNewCareRequest] = useState({
+            professional_type: 'nurse',
+            location: '',
+            urgency_level: 'medium',
+            care_needs_description: '',
+            preferred_languages: [],
+            start_date: '',
+            duration_weeks: 4
+          });
+          const [myAssignments, setMyAssignments] = useState([]);
+          const [dailyCareLogs, setDailyCareLogs] = useState([]);
+          const [showDailyCareLogModal, setShowDailyCareLogModal] = useState(false);
+          const [selectedAssignment, setSelectedAssignment] = useState(null);
+          const [careTips, setCareTips] = useState([]);
+          const [todaysTip, setTodaysTip] = useState(null);
+          const [careTasks, setCareTasks] = useState([]);
+          const [showTaskModal, setShowTaskModal] = useState(false);
+          const [newTask, setNewTask] = useState({
+            task_name: '',
+            description: '',
+            due_date: '',
+            priority: 'medium',
+            assigned_to: ''
+          });
             const checkUser = async () => {
             const userId = localStorage.getItem('salamaUserId');
             if (userId) {
@@ -135,7 +187,16 @@
                 .select('*')
                 .eq('id', userId)
                 .single();
-              if (data) setCurrentUser(data);
+              
+              if (data) {
+                setCurrentUser(data);
+                
+                // Check if user is a professional
+                if (data.role_type === 'professional') {
+                  setIsProfessional(true);
+                  loadProfessionalProfile(userId);
+                }
+              }
             }
             setIsLoading(false);
           };
@@ -154,27 +215,104 @@
           }, []);
 
           useEffect(() => {
-            if (currentUser && currentUser.role === 'care_recipient') {
-              loadCaregivers();
-              loadDocumentShareLinks();
-            }
-            if (currentUser && currentUser.role === 'caregiver') {
-              loadMyCareRecipients();
-            }
             if (currentUser) {
+              if (currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') {
+                loadCaregivers();
+                loadDocumentShareLinks();
+                loadCareTips();
+              }
+              if (currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') {
+                loadMyCareRecipients();
+              }
+              if (isProfessional) {
+                loadCareRequests();
+                loadMyAssignments();
+              }
               loadUserData();
               loadMemories();
               loadThoughtRecordings();
+              loadCareTasks();
             }
-          }, [currentUser]);
+          }, [currentUser, isProfessional]);
 
           useEffect(() => {
             if (viewingCareRecipient) {
               loadUserData();
               loadMemories();
               loadThoughtRecordings();
+              loadCareTasks();
             }
           }, [viewingCareRecipient]);
+
+          const loadProfessionalProfile = async (userId) => {
+            const { data } = await supabase
+              .from('professionals')
+              .select('*')
+              .eq('user_id', userId)
+              .single();
+            
+            if (data) {
+              setProfessionalProfile(data);
+            } else {
+              setShowProfessionalSetup(true);
+            }
+          };
+
+          const loadCareTips = async () => {
+            const { data } = await supabase
+              .from('care_tips')
+              .select('*')
+              .eq('is_active', true);
+            
+            if (data && data.length > 0) {
+              setCareTips(data);
+              const randomTip = data[Math.floor(Math.random() * data.length)];
+              setTodaysTip(randomTip);
+            }
+          };
+
+          const loadCareTasks = async () => {
+            if (!currentUser) return;
+            
+            let query = supabase.from('care_tasks').select('*');
+            
+            if (viewingCareRecipient) {
+              query = query.eq('care_recipient_id', viewingCareRecipient.id);
+            } else if (currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') {
+              query = query.eq('care_recipient_id', currentUser.id);
+            } else {
+              query = query.eq('assigned_to', currentUser.id);
+            }
+            
+            const { data } = await query.order('created_at', { ascending: false });
+            if (data) setCareTasks(data);
+          };
+
+          const loadCareRequests = async () => {
+            const { data } = await supabase
+              .from('care_requests')
+              .select('*')
+              .eq('status', 'open')
+              .order('created_at', { ascending: false });
+            
+            if (data) setCareRequests(data);
+          };
+
+          const loadMyAssignments = async () => {
+            if (!professionalProfile) return;
+            
+            const { data } = await supabase
+              .from('care_assignments')
+              .select(`
+                *,
+                care_recipient:users!care_assignments_care_recipient_id_fkey(id, name, avatar)
+              `)
+              .eq('professional_id', professionalProfile.id)
+              .in('status', ['active', 'paused'])
+              .order('start_date', { ascending: false });
+            
+            if (data) setMyAssignments(data);
+          };
 
           const loadUserData = async () => {
             if (!currentUser) return;
@@ -215,7 +353,7 @@
           };
 
           const loadCaregivers = async () => {
-            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            if (!currentUser || (currentUser.role !== 'care_recipient' && currentUser.role_type !== 'care_recipient')) return;
             
             const { data } = await supabase
               .from('caregivers')
@@ -245,7 +383,7 @@
           };
 
           const loadMyCareRecipients = async () => {
-            if (!currentUser || currentUser.role !== 'caregiver') return;
+            if (!currentUser || (currentUser.role !== 'caregiver' && currentUser.role_type !== 'family_caregiver')) return;
             
             const { data } = await supabase
               .from('caregivers')
@@ -258,7 +396,7 @@
                 .from('users')
                 .select('*')
                 .in('care_circle_id', circleIds)
-                .eq('role', 'care_recipient');
+                .or('role.eq.care_recipient,role_type.eq.care_recipient');
               
               setMyCareRecipients(recipientsData || []);
             }
@@ -309,6 +447,242 @@
             }
             
             loadCaregivers();
+          };
+            const createProfessionalProfile = async () => {
+            if (!professionalForm.full_name || !professionalForm.professional_type) {
+              alert('Please fill in all required fields');
+              return;
+            }
+
+            const { data, error } = await supabase
+              .from('professionals')
+              .insert([{
+                user_id: currentUser.id,
+                full_name: professionalForm.full_name,
+                professional_type: professionalForm.professional_type,
+                license_number: professionalForm.license_number,
+                years_experience: parseInt(professionalForm.years_experience) || 0,
+                languages_spoken: professionalForm.languages_spoken,
+                location: professionalForm.location,
+                city: professionalForm.city,
+                state: professionalForm.state,
+                country: professionalForm.country,
+                bio: professionalForm.bio,
+                hourly_rate: parseFloat(professionalForm.hourly_rate) || null,
+                is_verified: false,
+                availability_status: 'available'
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              setProfessionalProfile(data);
+              setShowProfessionalSetup(false);
+              
+              // Update user role_type
+              await supabase
+                .from('users')
+                .update({ role_type: 'professional' })
+                .eq('id', currentUser.id);
+              
+              setCurrentUser({ ...currentUser, role_type: 'professional' });
+              alert('Professional profile created! Your verification request has been submitted.');
+            } else {
+              alert('Error creating profile: ' + error?.message);
+            }
+          };
+
+          const updateProfessionalAvailability = async (status) => {
+            if (!professionalProfile) return;
+
+            await supabase
+              .from('professionals')
+              .update({ availability_status: status })
+              .eq('id', professionalProfile.id);
+
+            setProfessionalProfile({ ...professionalProfile, availability_status: status });
+          };
+
+          const createCareRequest = async () => {
+            if (!newCareRequest.care_needs_description || !newCareRequest.professional_type) {
+              alert('Please fill in care needs and professional type');
+              return;
+            }
+
+            const targetRecipientId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+            const { data, error } = await supabase
+              .from('care_requests')
+              .insert([{
+                care_recipient_id: targetRecipientId,
+                requested_by: currentUser.id,
+                professional_type: newCareRequest.professional_type,
+                location: newCareRequest.location,
+                urgency_level: newCareRequest.urgency_level,
+                care_needs_description: newCareRequest.care_needs_description,
+                preferred_languages: newCareRequest.preferred_languages,
+                start_date: newCareRequest.start_date || null,
+                duration_weeks: parseInt(newCareRequest.duration_weeks) || 4,
+                status: 'open'
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              setShowCareRequestModal(false);
+              setNewCareRequest({
+                professional_type: 'nurse',
+                location: '',
+                urgency_level: 'medium',
+                care_needs_description: '',
+                preferred_languages: [],
+                start_date: '',
+                duration_weeks: 4
+              });
+              alert('Care request posted! Professionals will be notified.');
+              loadCareRequests();
+            } else {
+              alert('Error creating request: ' + error?.message);
+            }
+          };
+
+          const respondToCareRequest = async (requestId, status, message = '') => {
+            if (!professionalProfile) return;
+
+            const { data, error } = await supabase
+              .from('care_request_responses')
+              .insert([{
+                request_id: requestId,
+                professional_id: professionalProfile.id,
+                status: status,
+                message: message,
+                proposed_rate: professionalProfile.hourly_rate
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              alert(`Response sent! Status: ${status}`);
+              loadCareRequests();
+            } else {
+              alert('Error sending response: ' + error?.message);
+            }
+          };
+
+          const createDailyCareLog = async (assignmentId, logData) => {
+            if (!professionalProfile) return;
+
+            const assignment = myAssignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+
+            const { data, error } = await supabase
+              .from('daily_care_logs')
+              .insert([{
+                assignment_id: assignmentId,
+                professional_id: professionalProfile.id,
+                care_recipient_id: assignment.care_recipient_id,
+                log_date: new Date().toISOString().split('T')[0],
+                check_in_time: logData.check_in_time,
+                check_out_time: logData.check_out_time,
+                activities_performed: logData.activities_performed || [],
+                vital_signs: logData.vital_signs || {},
+                medications_administered: logData.medications_administered || [],
+                observations: logData.observations,
+                incidents: logData.incidents,
+                family_communication: logData.family_communication
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              alert('Daily care log saved successfully!');
+              setShowDailyCareLogModal(false);
+            } else {
+              alert('Error saving log: ' + error?.message);
+            }
+          };
+
+          const createCareTask = async () => {
+            if (!newTask.task_name) {
+              alert('Please enter a task name');
+              return;
+            }
+
+            const targetRecipientId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+            const { data, error } = await supabase
+              .from('care_tasks')
+              .insert([{
+                care_recipient_id: targetRecipientId,
+                assigned_to: newTask.assigned_to || null,
+                created_by: currentUser.id,
+                task_name: newTask.task_name,
+                description: newTask.description,
+                due_date: newTask.due_date || null,
+                priority: newTask.priority,
+                status: 'pending'
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              setCareTasks([data, ...careTasks]);
+              setShowTaskModal(false);
+              setNewTask({
+                task_name: '',
+                description: '',
+                due_date: '',
+                priority: 'medium',
+                assigned_to: ''
+              });
+              alert('Task created successfully!');
+            } else {
+              alert('Error creating task: ' + error?.message);
+            }
+          };
+
+          const updateTaskStatus = async (taskId, newStatus) => {
+            const updates = { status: newStatus };
+            
+            if (newStatus === 'completed') {
+              updates.completed_at = new Date().toISOString();
+            }
+            
+            if (newStatus === 'verified') {
+              updates.verified_by = currentUser.id;
+              updates.verified_at = new Date().toISOString();
+            }
+
+            await supabase
+              .from('care_tasks')
+              .update(updates)
+              .eq('id', taskId);
+
+            setCareTasks(careTasks.map(t => 
+              t.id === taskId ? { ...t, ...updates } : t
+            ));
+          };
+
+          const submitDailyCheckIn = async (mood, notes) => {
+            const { data, error } = await supabase
+              .from('daily_checkins')
+              .insert([{
+                user_id: currentUser.id,
+                check_in_date: new Date().toISOString().split('T')[0],
+                status: 'checked_in',
+                mood: mood,
+                notes: notes
+              }])
+              .select()
+              .single();
+
+            if (data) {
+              alert('Daily check-in submitted!');
+            } else if (error?.code === '23505') {
+              alert('You have already checked in today!');
+            } else {
+              alert('Error submitting check-in: ' + error?.message);
+            }
           };
             const loadMemories = async (userId) => {
             const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
@@ -387,7 +761,8 @@
               alert('Error deleting memory: ' + error.message);
             }
           };
-            const loadThoughtRecordings = async (userId) => {
+
+          const loadThoughtRecordings = async (userId) => {
             const targetUserId = userId || (viewingCareRecipient ? viewingCareRecipient.id : currentUser.id);
             
             const { data } = await supabase
@@ -496,7 +871,7 @@
             return `${mins}:${secs.toString().padStart(2, '0')}`;
           };
             const loadDocumentShareLinks = async () => {
-            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            if (!currentUser || (currentUser.role !== 'care_recipient' && currentUser.role_type !== 'care_recipient')) return;
             
             const { data } = await supabase
               .from('document_share_links')
@@ -623,8 +998,80 @@
             if (qrContainer) {
               qrContainer.innerHTML = '';
               const shareUrl = `${window.location.origin}?share=${shareCode}`;
-              await QRCode.toCanvas(qrContainer, shareUrl, { width: 300 });
+              
+              try {
+                if (typeof QRCode === 'undefined') {
+                  qrContainer.innerHTML = `
+                    <div class="text-center">
+                      <p class="text-lg font-semibold mb-4">Share Code:</p>
+                      <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${shareUrl}</p>
+                    </div>
+                  `;
+                  return;
+                }
+                
+                new QRCode(qrContainer, {
+                  text: shareUrl,
+                  width: 300,
+                  height: 300,
+                  colorDark: "#000000",
+                  colorLight: "#ffffff",
+                  correctLevel: QRCode.CorrectLevel.M
+                });
+              } catch (error) {
+                console.error('QR generation error:', error);
+                qrContainer.innerHTML = `
+                  <div class="text-center">
+                    <p class="text-lg font-semibold mb-4">Share Code:</p>
+                    <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${shareUrl}</p>
+                  </div>
+                `;
+              }
             }
+          };
+
+          const generateQRCode = async (circleId) => {
+            const qrContainer = document.getElementById('qr-code-container');
+            if (!qrContainer) {
+              console.error('QR container not found');
+              return;
+            }
+            
+            qrContainer.innerHTML = '';
+            
+            try {
+              if (typeof QRCode === 'undefined') {
+                qrContainer.innerHTML = `
+                  <div class="text-center">
+                    <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
+                    <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
+                    <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
+                  </div>
+                `;
+                return;
+              }
+              
+              new QRCode(qrContainer, {
+                text: circleId,
+                width: 300,
+                height: 300,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+              });
+              
+            } catch (error) {
+              console.error('QR Code generation error:', error);
+              qrContainer.innerHTML = `
+                <div class="text-center">
+                  <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
+                  <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
+                  <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
+                </div>
+              `;
+            }
+            
+            setQRCodeData(circleId);
           };
             const addMedication = async () => {
             if (!newMed.medication_name.trim()) {
@@ -817,7 +1264,7 @@
           };
 
           const sendQuickText = async (text) => {
-            if (!currentUser || currentUser.role !== 'care_recipient') return;
+            if (!currentUser || (currentUser.role !== 'care_recipient' && currentUser.role_type !== 'care_recipient')) return;
             
             await supabase.from('quick_text_alerts').insert([{
               care_recipient_id: currentUser.id,
@@ -879,6 +1326,7 @@
                   password: authForm.password,
                   name: authForm.name.trim(),
                   role: authForm.role,
+                  role_type: authForm.role === 'care_recipient' ? 'care_recipient' : 'family_caregiver',
                   avatar: authForm.role === 'care_recipient' ? '👴' : '👨‍⚕️',
                   care_circle_id: authForm.role === 'care_recipient' ? crypto.randomUUID() : null
                 };
@@ -900,10 +1348,10 @@
                   localStorage.setItem('salamaUserId', data.id);
                   setAuthForm({ username: '', password: '', name: '', role: '' });
                   
-                  if (data.role === 'care_recipient') {
+                  if (data.role === 'care_recipient' || data.role_type === 'care_recipient') {
                     setTimeout(() => {
-                      generateQRCode(data.care_circle_id);
                       setShowQRCode(true);
+                      setTimeout(() => generateQRCode(data.care_circle_id), 200);
                     }, 500);
                   }
                   
@@ -916,51 +1364,6 @@
             }
           };
 
-       const generateQRCode = async (circleId) => {
-            const qrContainer = document.getElementById('qr-code-container');
-            if (!qrContainer) {
-              console.error('QR container not found');
-              return;
-            }
-            
-            qrContainer.innerHTML = '';
-            
-            try {
-              // Check if QRCode library is loaded
-              if (typeof QRCode === 'undefined') {
-                qrContainer.innerHTML = `
-                  <div class="text-center">
-                    <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
-                    <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
-                    <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
-                  </div>
-                `;
-                return;
-              }
-              
-              // Create QR code using QRCode.js
-              new QRCode(qrContainer, {
-                text: circleId,
-                width: 300,
-                height: 300,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
-              });
-              
-            } catch (error) {
-              console.error('QR Code generation error:', error);
-              qrContainer.innerHTML = `
-                <div class="text-center">
-                  <p class="text-lg font-semibold mb-4">Your Care Circle Code:</p>
-                  <p class="bg-gray-100 p-4 rounded text-sm font-mono break-all">${circleId}</p>
-                  <p class="text-sm text-gray-600 mt-4">Share this code with caregivers</p>
-                </div>
-              `;
-            }
-            
-            setQRCodeData(circleId);
-          };
           const startQRScanner = () => {
             setShowQRScanner(true);
             setTimeout(() => {
@@ -983,7 +1386,7 @@
               .from('users')
               .select('*')
               .eq('care_circle_id', circleId)
-              .eq('role', 'care_recipient')
+              .or('role.eq.care_recipient,role_type.eq.care_recipient')
               .single();
 
             if (circle) {
@@ -1052,6 +1455,8 @@
             localStorage.removeItem('salamaUserId');
             setCurrentUser(null);
             setViewingCareRecipient(null);
+            setIsProfessional(false);
+            setProfessionalProfile(null);
             setShowAuth(true);
           };
 
@@ -1074,14 +1479,14 @@
                   question: question,
                   conversationHistory: protectionMessages,
                   userName: currentUser.name,
-                  userRole: currentUser.role
+                  userRole: currentUser.role || currentUser.role_type
                 })
               });
 
               const data = await response.json();
               
               if (data.response) {
-                if (data.shouldAlert && currentUser.role === 'care_recipient') {
+                if (data.shouldAlert && (currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient')) {
                   console.log('🚨 Alert sent to caregivers:', question);
                   
                   setTimeout(() => {
@@ -1149,22 +1554,51 @@
             { id: 'group2', name: 'External (Support Group 2)' },
             { id: 'group3', name: 'External (Support Group 3)' }
           ];
-            const renderNavBar = () => (
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 z-50">
-              {[
-                { id: 'home', label: 'Home', icon: '🏠' },
-                { id: 'checkin', label: 'Check-In', icon: '📝' },
-                { id: 'carenotes', label: 'Care Notes', icon: '📋' },
-                { id: 'safety', label: 'Safety', icon: '🛡️' },
-                { id: 'carecircle', label: 'Care-Circle', icon: '👥' }
-              ].map((item) => (
-                <button key={item.id} onClick={() => setCurrentPage(item.id)} className="flex flex-col items-center">
-                  <span className="text-2xl mb-1">{item.icon}</span>
-                  <span className={`text-xs ${currentPage === item.id ? 'text-teal-700 font-semibold' : 'text-teal-600'}`}>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          );
+
+          const professionalTypes = [
+            { value: 'nurse', label: 'Nurse' },
+            { value: 'doctor', label: 'Doctor' },
+            { value: 'therapist', label: 'Therapist' },
+            { value: 'social_worker', label: 'Social Worker' },
+            { value: 'aide', label: 'Home Health Aide' },
+            { value: 'other', label: 'Other' }
+          ];
+            const renderNavBar = () => {
+            if (isProfessional && !viewingCareRecipient) {
+              return (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 z-50">
+                  {[
+                    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                    { id: 'requests', label: 'Requests', icon: '📋' },
+                    { id: 'assignments', label: 'Cases', icon: '👥' },
+                    { id: 'profile', label: 'Profile', icon: '⚙️' }
+                  ].map((item) => (
+                    <button key={item.id} onClick={() => setCurrentPage(item.id)} className="flex flex-col items-center">
+                      <span className="text-2xl mb-1">{item.icon}</span>
+                      <span className={`text-xs ${currentPage === item.id ? 'text-teal-700 font-semibold' : 'text-teal-600'}`}>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            }
+            
+            return (
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-teal-700 flex justify-around items-center py-2 z-50">
+                {[
+                  { id: 'home', label: 'Home', icon: '🏠' },
+                  { id: 'checkin', label: 'Check-In', icon: '📝' },
+                  { id: 'carenotes', label: 'Care Notes', icon: '📋' },
+                  { id: 'safety', label: 'Safety', icon: '🛡️' },
+                  { id: 'carecircle', label: 'Care-Circle', icon: '👥' }
+                ].map((item) => (
+                  <button key={item.id} onClick={() => setCurrentPage(item.id)} className="flex flex-col items-center">
+                    <span className="text-2xl mb-1">{item.icon}</span>
+                    <span className={`text-xs ${currentPage === item.id ? 'text-teal-700 font-semibold' : 'text-teal-600'}`}>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          };
 
           const renderHeader = (title) => (
             <div className="flex justify-between items-center mb-8">
@@ -1255,7 +1689,17 @@
                               onChange={(e) => setAuthForm({...authForm, role: e.target.value})}
                               required
                             />
-                            <span className="text-lg">I provide care</span>
+                            <span className="text-lg">I provide care (Family)</span>
+                          </label>
+                          <label className="flex items-center gap-3 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input
+                              type="radio"
+                              name="role"
+                              value="professional"
+                              onChange={(e) => setAuthForm({...authForm, role: e.target.value})}
+                              required
+                            />
+                            <span className="text-lg">I'm a professional caregiver</span>
                           </label>
                         </div>
                       </>
@@ -1274,13 +1718,25 @@
                 {showSidebar && (
                 <>
                   <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSidebar(false)} />
-                  <div className="fixed left-0 top-0 bottom-0 w-64 bg-teal-600 z-50 p-6 shadow-2xl">
+                  <div className="fixed left-0 top-0 bottom-0 w-64 bg-teal-600 z-50 p-6 shadow-2xl overflow-y-auto">
                     <button onClick={() => setShowSidebar(false)} className="absolute top-4 right-4 text-white text-2xl">✕</button>
                     <div className="mt-12">
                       <div className="text-center mb-6">
                         <div className="text-6xl mb-2">{currentUser.avatar}</div>
                         <p className="text-white text-xl font-semibold">{currentUser.name}</p>
-                        <p className="text-white/80 text-sm">{currentUser.role === 'care_recipient' ? 'Care Recipient' : 'Caregiver'}</p>
+                        <p className="text-white/80 text-sm">
+                          {isProfessional ? 'Professional Caregiver' : 
+                           currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient' ? 'Care Recipient' : 'Family Caregiver'}
+                        </p>
+                        {professionalProfile && (
+                          <div className="mt-2">
+                            {professionalProfile.is_verified ? (
+                              <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs">✓ Verified</span>
+                            ) : (
+                              <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs">Pending Verification</span>
+                            )}
+                          </div>
+                        )}
                         {viewingCareRecipient && (
                           <div className="mt-4 p-3 bg-white/20 rounded-lg">
                             <p className="text-white text-sm">Viewing:</p>
@@ -1315,7 +1771,7 @@
                         className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded">
                         2. Settings
                       </button>
-                      {currentUser.role === 'care_recipient' && (
+                      {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && (
                         <button 
                           onClick={() => {
                             setShowDocumentQRManager(true);
@@ -1325,8 +1781,19 @@
                           3. Share Links
                         </button>
                       )}
+                      {isProfessional && (
+                        <button 
+                          onClick={() => {
+                            setCurrentPage('profile');
+                            setShowSidebar(false);
+                          }}
+                          className="w-full text-left text-2xl text-white mb-6 hover:bg-white/20 p-3 rounded bg-purple-600">
+                          <Briefcase className="w-6 h-6 inline mr-2" />
+                          Professional Settings
+                        </button>
+                      )}
                       <button onClick={logout} className="w-full text-left text-2xl text-white hover:bg-white/20 p-3 rounded">
-                        {currentUser.role === 'care_recipient' ? '4' : '3'}. Log Out
+                        {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') ? '4' : '3'}. Log Out
                       </button>
                     </div>
                   </div>
@@ -1412,6 +1879,88 @@
                   </div>
                 </div>
               )}
+
+              {showProfessionalSetup && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                  <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                    <h2 className="text-3xl font-serif text-center mb-6">Complete Your Professional Profile</h2>
+                    
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Full Name *"
+                        value={professionalForm.full_name}
+                        onChange={(e) => setProfessionalForm({...professionalForm, full_name: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <select
+                        value={professionalForm.professional_type}
+                        onChange={(e) => setProfessionalForm({...professionalForm, professional_type: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      >
+                        {professionalTypes.map(type => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                      
+                      <input
+                        type="text"
+                        placeholder="License Number"
+                        value={professionalForm.license_number}
+                        onChange={(e) => setProfessionalForm({...professionalForm, license_number: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <input
+                        type="number"
+                        placeholder="Years of Experience"
+                        value={professionalForm.years_experience}
+                        onChange={(e) => setProfessionalForm({...professionalForm, years_experience: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <input
+                        type="text"
+                        placeholder="City"
+                        value={professionalForm.city}
+                        onChange={(e) => setProfessionalForm({...professionalForm, city: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <input
+                        type="text"
+                        placeholder="State"
+                        value={professionalForm.state}
+                        onChange={(e) => setProfessionalForm({...professionalForm, state: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      
+                      <textarea
+                        placeholder="Professional Bio"
+                        value={professionalForm.bio}
+                        onChange={(e) => setProfessionalForm({...professionalForm, bio: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-32"
+                      />
+                      
+                      <input
+                        type="number"
+                        placeholder="Hourly Rate (optional)"
+                        value={professionalForm.hourly_rate}
+                        onChange={(e) => setProfessionalForm({...professionalForm, hourly_rate: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                    </div>
+                    
+                    <button 
+                      onClick={createProfessionalProfile}
+                      className="w-full bg-teal-600 text-white py-4 rounded-lg text-lg font-semibold mt-6"
+                    >
+                      Complete Setup
+                    </button>
+                  </div>
+                </div>
+              )}
                 {showSettings && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
                   <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
@@ -1420,7 +1969,7 @@
                       <button onClick={() => setShowSettings(false)} className="text-2xl">✕</button>
                     </div>
                     
-                    {currentUser.role === 'care_recipient' && caregivers.length > 0 && (
+                    {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && caregivers.length > 0 && (
                       <div>
                         <h3 className="text-2xl font-serif mb-4">Caregiver Permissions</h3>
                         <p className="text-gray-600 mb-4">Control what each caregiver can see and access</p>
@@ -1503,13 +2052,13 @@
                       </div>
                     )}
                     
-                    {currentUser.role === 'care_recipient' && caregivers.length === 0 && (
+                    {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && caregivers.length === 0 && (
                       <div className="text-center py-8">
                         <p className="text-gray-500 text-lg">No caregivers yet. Share your QR code to add caregivers!</p>
                       </div>
                     )}
                     
-                    {currentUser.role === 'caregiver' && (
+                    {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && (
                       <div className="text-center py-8">
                         <p className="text-gray-500 text-lg">Settings available for care recipients</p>
                       </div>
@@ -1517,7 +2066,8 @@
                   </div>
                 </div>
               )}
-                {showDocumentQRManager && (
+
+              {showDocumentQRManager && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
                   <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
                     <div className="flex justify-between items-center mb-6">
@@ -1906,6 +2456,310 @@
                   </div>
                 </div>
               )}
+
+              {showTaskModal && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                  <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                    <h2 className="text-3xl font-serif text-center mb-6">Create Care Task</h2>
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Task Name *"
+                        value={newTask.task_name}
+                        onChange={(e) => setNewTask({...newTask, task_name: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      <textarea
+                        placeholder="Description"
+                        value={newTask.description}
+                        onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-24"
+                      />
+                      <input
+                        type="datetime-local"
+                        value={newTask.due_date}
+                        onChange={(e) => setNewTask({...newTask, due_date: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      />
+                      <select
+                        value={newTask.priority}
+                        onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                        className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                      >
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                      {caregivers.length > 0 && (
+                        <select
+                          value={newTask.assigned_to}
+                          onChange={(e) => setNewTask({...newTask, assigned_to: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        >
+                          <option value="">Assign to...</option>
+                          {caregivers.map(cg => (
+                            <option key={cg.id} value={cg.id}>{cg.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div className="flex gap-4 mt-6">
+                      <button 
+                        onClick={() => {
+                          setShowTaskModal(false);
+                          setNewTask({ task_name: '', description: '', due_date: '', priority: 'medium', assigned_to: '' });
+                        }}
+                        className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={createCareTask}
+                        className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Create Task
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+                {showCareRequestModal && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                  <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                    <h2 className="text-3xl font-serif text-center mb-6">Request Professional Care</h2>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Type of Professional Needed</label>
+                        <select
+                          value={newCareRequest.professional_type}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, professional_type: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        >
+                          {professionalTypes.map(type => (
+                            <option key={type.value} value={type.value}>{type.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Location</label>
+                        <input
+                          type="text"
+                          placeholder="City, State or Address"
+                          value={newCareRequest.location}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, location: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Urgency Level</label>
+                        <select
+                          value={newCareRequest.urgency_level}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, urgency_level: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        >
+                          <option value="low">Low - Flexible timing</option>
+                          <option value="medium">Medium - Within a week</option>
+                          <option value="high">High - Within 2-3 days</option>
+                          <option value="urgent">Urgent - Immediate need</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Care Needs Description *</label>
+                        <textarea
+                          placeholder="Describe the care needs, specific requirements, and any important details..."
+                          value={newCareRequest.care_needs_description}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, care_needs_description: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-32"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Start Date</label>
+                        <input
+                          type="date"
+                          value={newCareRequest.start_date}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, start_date: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-lg font-semibold mb-2">Expected Duration (weeks)</label>
+                        <input
+                          type="number"
+                          placeholder="4"
+                          value={newCareRequest.duration_weeks}
+                          onChange={(e) => setNewCareRequest({...newCareRequest, duration_weeks: e.target.value})}
+                          className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4 mt-6">
+                      <button 
+                        onClick={() => {
+                          setShowCareRequestModal(false);
+                          setNewCareRequest({
+                            professional_type: 'nurse',
+                            location: '',
+                            urgency_level: 'medium',
+                            care_needs_description: '',
+                            preferred_languages: [],
+                            start_date: '',
+                            duration_weeks: 4
+                          });
+                        }}
+                        className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={createCareRequest}
+                        className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Post Request
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showDailyCareLogModal && selectedAssignment && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                  <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                    <h2 className="text-3xl font-serif text-center mb-6">Daily Care Log</h2>
+                    <p className="text-center text-gray-600 mb-6">
+                      Care Recipient: {selectedAssignment.care_recipient?.name || 'Unknown'}
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">Check-In Time</label>
+                          <input
+                            type="time"
+                            className="w-full p-3 border-2 border-gray-300 rounded-lg"
+                            id="check-in-time"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">Check-Out Time</label>
+                          <input
+                            type="time"
+                            className="w-full p-3 border-2 border-gray-300 rounded-lg"
+                            id="check-out-time"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Activities Performed</label>
+                        <textarea
+                          placeholder="E.g., Assisted with bathing, meal preparation, medication administration..."
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg h-24"
+                          id="activities-performed"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Vital Signs (optional)</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            placeholder="Blood Pressure"
+                            className="p-3 border-2 border-gray-300 rounded-lg"
+                            id="vital-bp"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Heart Rate"
+                            className="p-3 border-2 border-gray-300 rounded-lg"
+                            id="vital-hr"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Temperature"
+                            className="p-3 border-2 border-gray-300 rounded-lg"
+                            id="vital-temp"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Oxygen Level"
+                            className="p-3 border-2 border-gray-300 rounded-lg"
+                            id="vital-o2"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Observations</label>
+                        <textarea
+                          placeholder="General observations about the care recipient's condition, mood, behavior..."
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg h-24"
+                          id="observations"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Incidents (if any)</label>
+                        <textarea
+                          placeholder="Report any falls, injuries, medication errors, or other incidents..."
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg h-24"
+                          id="incidents"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Family Communication</label>
+                        <textarea
+                          placeholder="Notes to share with family members..."
+                          className="w-full p-3 border-2 border-gray-300 rounded-lg h-24"
+                          id="family-comm"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4 mt-6">
+                      <button 
+                        onClick={() => {
+                          setShowDailyCareLogModal(false);
+                          setSelectedAssignment(null);
+                        }}
+                        className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const logData = {
+                            check_in_time: document.getElementById('check-in-time').value,
+                            check_out_time: document.getElementById('check-out-time').value,
+                            activities_performed: document.getElementById('activities-performed').value.split(',').map(a => a.trim()).filter(Boolean),
+                            vital_signs: {
+                              blood_pressure: document.getElementById('vital-bp').value,
+                              heart_rate: document.getElementById('vital-hr').value,
+                              temperature: document.getElementById('vital-temp').value,
+                              oxygen_level: document.getElementById('vital-o2').value
+                            },
+                            observations: document.getElementById('observations').value,
+                            incidents: document.getElementById('incidents').value,
+                            family_communication: document.getElementById('family-comm').value
+                          };
+                          createDailyCareLog(selectedAssignment.id, logData);
+                        }}
+                        className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold"
+                      >
+                        Save Log
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
                 {chatWith && (
                 <div className="fixed inset-0 bg-gradient-to-b from-teal-600 to-blue-300 z-50 flex flex-col">
                   <div className="p-6 flex items-center gap-4 border-b border-white/30">
@@ -2100,7 +2954,7 @@
                   ))}
                 </div>
               )}
-                {currentPage === 'home' && (
+                {currentPage === 'home' && !isProfessional && (
                 <div className="p-6">
                   {renderHeader('')}
                   
@@ -2114,7 +2968,14 @@
                     <div className="text-2xl text-black font-serif italic">All will be well</div>
                   </div>
                   
-                  {currentUser.role === 'caregiver' && !viewingCareRecipient && (
+                  {todaysTip && (
+                    <div className="bg-white/20 rounded-2xl p-4 mx-8 mb-6">
+                      <p className="text-sm text-white/80 mb-1">💡 Today's Care Tip</p>
+                      <p className="text-white font-serif text-lg">{todaysTip.tip_text}</p>
+                    </div>
+                  )}
+                  
+                  {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && !viewingCareRecipient && (
                     <div className="text-center py-12">
                       <h2 className="text-4xl font-serif text-white mb-8">Today's Recap</h2>
                       <div className="bg-white/20 rounded-3xl p-8 mx-8 mb-4">
@@ -2127,10 +2988,46 @@
                           Scan QR Code
                         </button>
                       </div>
+                      
+                      {careTasks.length > 0 && (
+                        <div className="bg-white rounded-3xl p-6 mx-8 mt-6">
+                          <h3 className="text-2xl font-serif text-black mb-4">My Tasks</h3>
+                          <div className="space-y-3">
+                            {careTasks.slice(0, 5).map((task) => (
+                              <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-black">{task.task_name}</p>
+                                  <p className="text-sm text-gray-600">
+                                    {task.priority === 'urgent' && '🔴 '}
+                                    {task.priority === 'high' && '🟠 '}
+                                    {task.status}
+                                  </p>
+                                </div>
+                                {task.status === 'pending' && (
+                                  <button
+                                    onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                                  >
+                                    Start
+                                  </button>
+                                )}
+                                {task.status === 'in_progress' && (
+                                  <button
+                                    onClick={() => updateTaskStatus(task.id, 'completed')}
+                                    className="bg-green-500 text-white px-3 py-1 rounded text-sm"
+                                  >
+                                    Complete
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {(currentUser.role === 'care_recipient' || viewingCareRecipient) && (
+                  {((currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') || viewingCareRecipient) && (
                     <>
                       <h2 className="text-5xl font-serif text-white text-center mb-8">Today's Recap</h2>
                       
@@ -2304,20 +3201,289 @@
                           </div>
                         </div>
                       )}
+                      
+                      {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient' || viewingCareRecipient) && (
+                        <div className="text-center mt-6">
+                          <button 
+                            onClick={() => setShowCareRequestModal(true)}
+                            className="bg-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-lg"
+                          >
+                            🩺 Request Professional Care
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
+                </div>
+              )}
+                {currentPage === 'dashboard' && isProfessional && (
+                <div className="p-6">
+                  {renderHeader('Dashboard')}
+                  
+                  <div className="bg-white rounded-3xl p-6 mx-4 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-2xl font-serif text-black">Welcome, {professionalProfile?.full_name}</h2>
+                        <p className="text-gray-600">{professionalProfile?.professional_type}</p>
+                      </div>
+                      <div>
+                        <select
+                          value={professionalProfile?.availability_status || 'available'}
+                          onChange={(e) => updateProfessionalAvailability(e.target.value)}
+                          className="p-3 border-2 border-gray-300 rounded-lg"
+                        >
+                          <option value="available">🟢 Available</option>
+                          <option value="busy">🟡 Busy</option>
+                          <option value="unavailable">🔴 Unavailable</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    {!professionalProfile?.is_verified && (
+                      <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+                        <p className="text-yellow-800 font-semibold">⚠️ Verification Pending</p>
+                        <p className="text-yellow-700 text-sm">Your profile is under review. You'll receive a notification once verified.</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mx-4 mb-6">
+                    <div className="bg-blue-500 text-white rounded-2xl p-6">
+                      <p className="text-3xl font-bold">{myAssignments.length}</p>
+                      <p className="text-sm">Active Cases</p>
+                    </div>
+                    <div className="bg-green-500 text-white rounded-2xl p-6">
+                      <p className="text-3xl font-bold">{careRequests.length}</p>
+                      <p className="text-sm">Open Requests</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-3xl p-6 mx-4 mb-6">
+                    <h3 className="text-xl font-serif text-black mb-4">Quick Actions</h3>
+                    <div className="space-y-3">
+                      <button 
+                        onClick={() => setCurrentPage('requests')}
+                        className="w-full bg-teal-600 text-white py-3 rounded-lg text-left px-4 flex justify-between items-center"
+                      >
+                        <span>View Care Requests</span>
+                        <span className="text-2xl">→</span>
+                      </button>
+                      <button 
+                        onClick={() => setCurrentPage('assignments')}
+                        className="w-full bg-purple-600 text-white py-3 rounded-lg text-left px-4 flex justify-between items-center"
+                      >
+                        <span>My Cases</span>
+                        <span className="text-2xl">→</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {todaysTip && (
+                    <div className="bg-white/20 rounded-2xl p-4 mx-4">
+                      <p className="text-sm text-white/80 mb-1">💡 Professional Tip</p>
+                      <p className="text-white font-serif text-lg">{todaysTip.tip_text}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {currentPage === 'requests' && isProfessional && (
+                <div className="p-6">
+                  {renderHeader('Care Requests')}
+                  
+                  {careRequests.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">📋</div>
+                      <p className="text-white text-xl">No open care requests at the moment</p>
+                      <p className="text-white/80 mt-2">Check back later for new opportunities</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {careRequests.map((request) => (
+                        <div key={request.id} className="bg-white rounded-3xl p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-xl font-serif text-black mb-1">
+                                {request.professional_type.charAt(0).toUpperCase() + request.professional_type.slice(1)} Needed
+                              </h3>
+                              <p className="text-sm text-gray-600">📍 {request.location || 'Location not specified'}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              request.urgency_level === 'urgent' ? 'bg-red-500 text-white' :
+                              request.urgency_level === 'high' ? 'bg-orange-500 text-white' :
+                              request.urgency_level === 'medium' ? 'bg-yellow-500 text-white' :
+                              'bg-gray-300 text-black'
+                            }`}>
+                              {request.urgency_level}
+                            </span>
+                          </div>
+                          
+                          <p className="text-gray-700 mb-4">{request.care_needs_description}</p>
+                          
+                          <div className="flex gap-2 text-sm text-gray-600 mb-4">
+                            {request.start_date && <span>📅 Start: {new Date(request.start_date).toLocaleDateString()}</span>}
+                            {request.duration_weeks && <span>• {request.duration_weeks} weeks</span>}
+                          </div>
+                          
+                          <div className="flex gap-3">
+                            <button 
+                              onClick={() => respondToCareRequest(request.id, 'interested', 'I am interested in this case and would like to discuss further.')}
+                              className="flex-1 bg-teal-600 text-white py-2 rounded-lg font-semibold"
+                            >
+                              Express Interest
+                            </button>
+                            <button 
+                              onClick={() => respondToCareRequest(request.id, 'more_info_needed', 'Could you provide more details about the care requirements?')}
+                              className="flex-1 bg-gray-300 text-black py-2 rounded-lg font-semibold"
+                            >
+                              Request Info
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {currentPage === 'assignments' && isProfessional && (
+                <div className="p-6">
+                  {renderHeader('My Cases')}
+                  
+                  {myAssignments.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">👥</div>
+                      <p className="text-white text-xl">No active cases yet</p>
+                      <p className="text-white/80 mt-2">Browse care requests to get started</p>
+                      <button 
+                        onClick={() => setCurrentPage('requests')}
+                        className="mt-6 bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold"
+                      >
+                        View Requests
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {myAssignments.map((assignment) => (
+                        <div key={assignment.id} className="bg-white rounded-3xl p-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-16 h-16 rounded-full bg-teal-500 flex items-center justify-center text-3xl">
+                              {assignment.care_recipient?.avatar || '👤'}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-xl font-serif text-black">{assignment.care_recipient?.name || 'Unknown'}</h3>
+                              <p className="text-sm text-gray-600">
+                                Started: {new Date(assignment.start_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              assignment.status === 'active' ? 'bg-green-500 text-white' :
+                              assignment.status === 'paused' ? 'bg-yellow-500 text-white' :
+                              'bg-gray-300 text-black'
+                            }`}>
+                              {assignment.status}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3 mt-4">
+                            <button 
+                              onClick={() => {
+                                setSelectedAssignment(assignment);
+                                setShowDailyCareLogModal(true);
+                              }}
+                              className="bg-blue-500 text-white py-2 rounded-lg font-semibold"
+                            >
+                              📝 Add Care Log
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setViewingCareRecipient(assignment.care_recipient);
+                                setCurrentPage('home');
+                              }}
+                              className="bg-teal-600 text-white py-2 rounded-lg font-semibold"
+                            >
+                              👁️ View Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {currentPage === 'profile' && isProfessional && professionalProfile && (
+                <div className="p-6">
+                  {renderHeader('Professional Profile')}
+                  
+                  <div className="bg-white rounded-3xl p-6 mx-4">
+                    <div className="text-center mb-6">
+                      <div className="w-24 h-24 bg-teal-500 rounded-full mx-auto mb-4 flex items-center justify-center text-5xl">
+                        👨‍⚕️
+                      </div>
+                      <h2 className="text-2xl font-serif text-black">{professionalProfile.full_name}</h2>
+                      <p className="text-gray-600">{professionalProfile.professional_type}</p>
+                      {professionalProfile.is_verified ? (
+                        <span className="inline-block bg-green-500 text-white px-4 py-1 rounded-full text-sm mt-2">✓ Verified Professional</span>
+                      ) : (
+                        <span className="inline-block bg-yellow-500 text-white px-4 py-1 rounded-full text-sm mt-2">⏳ Pending Verification</span>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-4 mb-6">
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">License Number</p>
+                        <p className="font-semibold">{professionalProfile.license_number || 'Not provided'}</p>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Experience</p>
+                        <p className="font-semibold">{professionalProfile.years_experience || 0} years</p>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Location</p>
+                        <p className="font-semibold">{professionalProfile.city}, {professionalProfile.state}</p>
+                      </div>
+                      
+                      {professionalProfile.hourly_rate && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600 mb-1">Hourly Rate</p>
+                          <p className="font-semibold">${professionalProfile.hourly_rate}/hour</p>
+                        </div>
+                      )}
+                      
+                      {professionalProfile.bio && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600 mb-1">Bio</p>
+                          <p className="text-gray-700">{professionalProfile.bio}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button 
+                      onClick={() => setShowProfessionalSetup(true)}
+                      className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
                 </div>
               )}
                 {currentPage === 'checkin' && (
                 <div className="p-6">
                   {renderHeader('Check-In')}
+                  
                   <div className="mb-8">
                     <h3 className="text-2xl text-black font-serif mb-4">How Am I Feeling?</h3>
                     <div className="flex justify-between items-center mb-4 px-4">
                       {moods.map((mood, idx) => (
                         <button
                           key={idx}
-                          onClick={() => setSelectedMood(idx)}
+                          onClick={() => {
+                            setSelectedMood(idx);
+                            submitDailyCheckIn(mood.emoji, '');
+                          }}
                           className={`w-14 h-14 rounded-full ${mood.color} flex items-center justify-center text-3xl transition-transform ${selectedMood === idx ? 'scale-125' : ''}`}
                         >
                           {mood.emoji}
@@ -2326,6 +3492,53 @@
                     </div>
                     <div className="h-3 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full mx-4"></div>
                   </div>
+                  
+                  {careTasks.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-3xl text-black font-serif">Today's Tasks</h3>
+                        <button 
+                          onClick={() => setShowTaskModal(true)}
+                          className="bg-white text-teal-700 px-4 py-2 rounded-full text-sm font-semibold"
+                        >
+                          + Add Task
+                        </button>
+                      </div>
+                      <div className="space-y-3 mb-6">
+                        {careTasks.filter(t => t.status !== 'completed').slice(0, 5).map((task) => (
+                          <div key={task.id} className="bg-white/30 p-4 rounded-lg">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-semibold text-black text-lg">{task.task_name}</p>
+                                {task.description && <p className="text-white text-sm mt-1">{task.description}</p>}
+                                <div className="flex gap-2 mt-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    task.priority === 'urgent' ? 'bg-red-500 text-white' :
+                                    task.priority === 'high' ? 'bg-orange-500 text-white' :
+                                    task.priority === 'medium' ? 'bg-yellow-500 text-white' :
+                                    'bg-gray-300 text-black'
+                                  }`}>
+                                    {task.priority}
+                                  </span>
+                                  <span className="px-2 py-1 rounded text-xs bg-white/50 text-black">
+                                    {task.status}
+                                  </span>
+                                </div>
+                              </div>
+                              {task.status === 'pending' && (
+                                <button
+                                  onClick={() => updateTaskStatus(task.id, 'completed')}
+                                  className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm ml-3"
+                                >
+                                  ✓ Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="mb-8">
                     <h3 className="text-3xl text-black font-serif mb-4">Record Your Thoughts</h3>
@@ -2450,7 +3663,7 @@
                   </div>
                 </div>
               )}
-        {currentPage === 'carenotes' && (
+                {currentPage === 'carenotes' && (
                 <div className="p-6">
                   {renderHeader('Care Notes')}
                   
@@ -2802,7 +4015,7 @@
                   </div>
                 </div>
               )}
-    {currentPage === 'safety' && (
+                {currentPage === 'safety' && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-12">
                     <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
@@ -2867,23 +4080,23 @@
                   </div>
                 </div>
               )}
-    {currentPage === 'carecircle' && (
+        {currentPage === 'carecircle' && (
                 <div className="p-6">
                   {renderHeader('Care Circle')}
                   
-                  {currentUser.role === 'care_recipient' && (
-  <div className="mb-8 text-center">
-   <button onClick={() => { 
-  setShowQRCode(true);
-  setTimeout(() => generateQRCode(currentUser.care_circle_id), 500);
-}} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
+                  {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && (
+                    <div className="mb-8 text-center">
+                      <button onClick={() => { 
+                        setShowQRCode(true);
+                        setTimeout(() => generateQRCode(currentUser.care_circle_id), 200);
+                      }} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
                         📱 Show My QR Code
                       </button>
                       <p className="text-white">Share this with caregivers to add them to your circle</p>
                     </div>
                   )}
 
-                  {currentUser.role === 'caregiver' && (
+                  {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && (
                     <div className="mb-8 text-center">
                       <button onClick={startQRScanner} className="bg-white text-teal-700 px-6 py-3 rounded-full text-lg font-semibold mb-4">
                         📷 Scan QR Code
@@ -2892,7 +4105,7 @@
                     </div>
                   )}
 
-                  {currentUser.role === 'care_recipient' && caregivers.length > 0 && (
+                  {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && caregivers.length > 0 && (
                     <>
                       <h3 className="text-3xl text-white font-serif mb-6 text-center">My Caregivers</h3>
                       <div className="grid grid-cols-2 gap-6 px-8 mb-8">
@@ -2908,7 +4121,7 @@
                     </>
                   )}
 
-                  {currentUser.role === 'caregiver' && myCareRecipients.length > 0 && (
+                  {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && myCareRecipients.length > 0 && (
                     <>
                       <h3 className="text-3xl text-white font-serif mb-6 text-center">My Care Recipients</h3>
                       <div className="grid grid-cols-2 gap-6 px-8 mb-8">
@@ -2932,6 +4145,32 @@
                     </>
                   )}
 
+                  {isProfessional && myAssignments.length > 0 && (
+                    <>
+                      <h3 className="text-3xl text-white font-serif mb-6 text-center">My Professional Cases</h3>
+                      <div className="grid grid-cols-2 gap-6 px-8 mb-8">
+                        {myAssignments.map((assignment) => (
+                          <button 
+                            key={assignment.id} 
+                            onClick={() => { 
+                              if (assignment.care_recipient) {
+                                setViewingCareRecipient(assignment.care_recipient);
+                                setCurrentPage('home');
+                              }
+                            }} 
+                            className="flex flex-col items-center hover:scale-105 transition-transform"
+                          >
+                            <div className="w-32 h-32 rounded-full border-4 border-black bg-gradient-to-b from-purple-400 to-purple-300 mb-3 flex items-center justify-center">
+                              <span className="text-5xl">{assignment.care_recipient?.avatar || '👤'}</span>
+                            </div>
+                            <p className="text-center text-lg text-black font-serif">{assignment.care_recipient?.name || 'Unknown'}</p>
+                            <p className="text-center text-sm text-white mt-1">Professional Case</p>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
                   <div className="mt-8">
                     <button onClick={() => setShowCommunities(true)} className="flex flex-col items-center hover:scale-105 transition-transform mx-auto">
                       <div className="w-32 h-32 rounded-full border-4 border-black bg-gradient-to-b from-blue-300 to-blue-200 mb-3 flex items-center justify-center">
@@ -2940,6 +4179,48 @@
                       <p className="text-center text-lg text-black font-serif">Community</p>
                     </button>
                   </div>
+                  
+                  {careTasks.length > 0 && (
+                    <div className="mt-8 bg-white rounded-3xl p-6 mx-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-2xl font-serif text-black">Care Tasks</h3>
+                        <button 
+                          onClick={() => setShowTaskModal(true)}
+                          className="bg-teal-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                        >
+                          + Add Task
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {careTasks.filter(t => t.status !== 'completed').slice(0, 5).map((task) => (
+                          <div key={task.id} className="p-3 bg-gray-50 rounded-lg">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-semibold text-black">{task.task_name}</p>
+                                <p className="text-sm text-gray-600">{task.status}</p>
+                              </div>
+                              {task.status === 'pending' && (
+                                <button
+                                  onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                                  className="bg-blue-500 text-white px-3 py-1 rounded text-sm ml-2"
+                                >
+                                  Start
+                                </button>
+                              )}
+                              {task.status === 'in_progress' && (
+                                <button
+                                  onClick={() => updateTaskStatus(task.id, 'completed')}
+                                  className="bg-green-500 text-white px-3 py-1 rounded text-sm ml-2"
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2952,7 +4233,3 @@
     </script>
 </body>
 </html>
-
-
-
-

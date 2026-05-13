@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salama - Elder Care App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: red;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .animate-slideUp {
+            animation: slideUp 0.3s ease-out;
+        }
+        .high-contrast {
+            filter: contrast(1.5);
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-25%); }
+        }
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { createClient } = supabase;
+        const { Home, Heart, Users, FileText, Shield, Clock, Bell, User, Camera, Mic, Settings, Search, ChevronLeft, ChevronRight, CheckSquare, AlertCircle, CheckCircle, Keyboard, Menu, X } = lucide;
+
+        // ===== 🔥 REPLACE WITH YOUR SUPABASE CREDENTIALS 🔥 =====
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        // ===== Get from: https://supabase.com/dashboard → Your Project → Settings → API =====
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function SalamaApp() {
+            // ===== STATE VARIABLES =====
+            const [currentUser, setCurrentUser] = useState(null);
+            const [showAuth, setShowAuth] = useState(true);
+            const [isLogin, setIsLogin] = useState(true);
+            const [authUsername, setAuthUsername] = useState('');
+            const [authPassword, setAuthPassword] = useState('');
+            const [authName, setAuthName] = useState('');
+            const [authRole, setAuthRole] = useState('care_recipient');
+            const [showPassword, setShowPassword] = useState(false);
+            
+            const [currentPage, setCurrentPage] = useState('home');
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [currentCardIndex, setCurrentCardIndex] = useState(0);
+            
+            const [medications, setMedications] = useState([]);
+            const [appointments, setAppointments] = useState([]);
+            const [activities, setActivities] = useState([]);
+            const [memories, setMemories] = useState([]);
+            const [documents, setDocuments] = useState([]);
+            const [thoughtRecordings, setThoughtRecordings] = useState([]);
+            const [caregivers, setCaregivers] = useState([]);
+            const [careTasks, setCareTasks] = useState([]);
+            const [communities, setCommunities] = useState([]);
+            
+            const [showSidebar, setShowSidebar] = useState(false);
+            const [showNotifications, setShowNotifications] = useState(false);
+            const [showAddMedication, setShowAddMedication] = useState(false);
+            const [showAddAppointment, setShowAddAppointment] = useState(false);
+            const [showAddActivity, setShowAddActivity] = useState(false);
+            const [showAddMemory, setShowAddMemory] = useState(false);
+            const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+            const [showQRCode, setShowQRCode] = useState(false);
+            const [showQRScanner, setShowQRScanner] = useState(false);
+            const [showProfileEdit, setShowProfileEdit] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
+            const [showProtectionChat, setShowProtectionChat] = useState(false);
+            const [showCommunities, setShowCommunities] = useState(false);
+            const [showTaskModal, setShowTaskModal] = useState(false);
+            const [showCareRequestModal, setShowCareRequestModal] = useState(false);
+            const [showDocumentQRManager, setShowDocumentQRManager] = useState(false);
+            const [showCreateShareLink, setShowCreateShareLink] = useState(false);
+            const [showOnboarding, setShowOnboarding] = useState(false);
+            const [onboardingStep, setOnboardingStep] = useState(0);
+            
+            const [editName, setEditName] = useState('');
+            const [editAvatar, setEditAvatar] = useState('');
+            const [uploadingFile, setUploadingFile] = useState(false);
+            
+            const [isRecording, setIsRecording] = useState(false);
+            const [mediaRecorder, setMediaRecorder] = useState(null);
+            const [recordingDuration, setRecordingDuration] = useState(0);
+            
+            const [chatWith, setChatWith] = useState(null);
+            const [messageInput, setMessageInput] = useState('');
+            const [chatMessages, setChatMessages] = useState([]);
+            
+            const [protectionInput, setProtectionInput] = useState('');
+            const [protectionMessages, setProtectionMessages] = useState([]);
+            const [isAIThinking, setIsAIThinking] = useState(false);
+            
+            const [selectedMood, setSelectedMood] = useState(null);
+            const [checkInNotes, setCheckInNotes] = useState('');
+            const [recentMoods, setRecentMoods] = useState([]);
+            const [recentCheckIns, setRecentCheckIns] = useState([]);
+            
+            const [notifications, setNotifications] = useState([]);
+            const [unreadNotifications, setUnreadNotifications] = useState(0);
+            
+            const [timelineEvents, setTimelineEvents] = useState([]);
+            const [todaysEvents, setTodaysEvents] = useState([]);
+            const [todaysTip, setTodaysTip] = useState(null);
+            
+            const [medicationsTaken, setMedicationsTaken] = useState({});
+            const [keyMetrics, setKeyMetrics] = useState({
+                tasksCompleted: 0,
+                checkInsThisWeek: 0,
+                missedMedications: 0,
+                completionRate: 0
+            });
+            
+            const [backgroundMonitoring, setBackgroundMonitoring] = useState(false);
+            const [monitoringAlerts, setMonitoringAlerts] = useState([]);
+            
+            const [caregiverPermissions, setCaregiverPermissions] = useState({});
+            const [documentShareLinks, setDocumentShareLinks] = useState([]);
+            const [shareLinkName, setShareLinkName] = useState('');
+            const [shareAllDocs, setShareAllDocs] = useState(true);
+            
+            const [viewingCareRecipient, setViewingCareRecipient] = useState(null);
+            const [myCareRecipients, setMyCareRecipients] = useState([]);
+            
+            const [isProfessional, setIsProfessional] = useState(false);
+            const [professionalProfile, setProfessionalProfile] = useState(null);
+            const [professionalForm, setProfessionalForm] = useState({
+                full_name: '',
+                professional_type: 'nurse',
+                license_number: '',
+                years_experience: 0,
+                city: '',
+                state: '',
+                bio: '',
+                hourly_rate: 0
+            });
+            const [showProfessionalSetup, setShowProfessionalSetup] = useState(false);
+            const [careRequests, setCareRequests] = useState([]);
+            const [myAssignments, setMyAssignments] = useState([]);
+            const [newCareRequest, setNewCareRequest] = useState({
+                professional_type: 'nurse',
+                location: '',
+                urgency_level: 'medium',
+                care_needs_description: '',
+                preferred_languages: [],
+                start_date: '',
+                duration_weeks: 4
+            });
+            const [selectedAssignment, setSelectedAssignment] = useState(null);
+            const [showDailyCareLogModal, setShowDailyCareLogModal] = useState(false);
+            const [newTask, setNewTask] = useState({
+                task_name: '',
+                description: '',
+                due_date: '',
+                priority: 'medium',
+                assigned_to: null
+            });
+            
+            const [error, setError] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [pendingActions, setPendingActions] = useState([]);
+            
+            const [searchQuery, setSearchQuery] = useState('');
+            const [debouncedSearch, setDebouncedSearch] = useState('');
+            const [filterType, setFilterType] = useState('all');
+            const [showSearch, setShowSearch] = useState(false);
+            
+            const [showExportOptions, setShowExportOptions] = useState(false);
+            const [analyticsData, setAnalyticsData] = useState(null);
+            
+            const [fontSize, setFontSize] = useState('normal');
+            const [highContrast, setHighContrast] = useState(false);
+            const [voiceAnnouncements, setVoiceAnnouncements] = useState(false);
+            const [showAccessibilitySettings, setShowAccessibilitySettings] = useState(false);
+
+            const moods = [
+                { emoji: '😊', label: 'Great', value: 5 },
+                { emoji: '🙂', label: 'Good', value: 4 },
+                { emoji: '😐', label: 'Okay', value: 3 },
+                { emoji: '😟', label: 'Sad', value: 2 },
+                { emoji: '😡', label: 'Angry', value: 1 }
+            ];
+
+            const professionalTypes = [
+                { value: 'nurse', label: 'Registered Nurse' },
+                { value: 'home_health_aide', label: 'Home Health Aide' },
+                { value: 'physical_therapist', label: 'Physical Therapist' },
+                { value: 'occupational_therapist', label: 'Occupational Therapist' },
+                { value: 'social_worker', label: 'Social Worker' },
+                { value: 'companion', label: 'Companion Caregiver' }
+            ];
+
+            // ===== UTILITY FUNCTIONS =====
+            const formatDuration = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            const handleError = (errorMessage, context = '') => {
+                console.error(`Error in ${context}:`, errorMessage);
+                setError(errorMessage);
+                createNotification(currentUser?.id || 'system', 'alert', 'Error Occurred', errorMessage);
+                setTimeout(() => setError(null), 5000);
+            };
+
+            const announce = (message) => {
+                if (!voiceAnnouncements) return;
+                const utterance = new SpeechSynthesisUtterance(message);
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const filterData = () => {
+                const query = debouncedSearch.toLowerCase();
+                let results = [];
+                
+                if (filterType === 'all' || filterType === 'medications') {
+                    results.push(...medications.filter(m => 
+                        m.medication_name.toLowerCase().includes(query)
+                    ).map(m => ({...m, type: 'medication'})));
+                }
+                
+                if (filterType === 'all' || filterType === 'appointments') {
+                    results.push(...appointments.filter(a => 
+                        a.appointment_name.toLowerCase().includes(query)
+                    ).map(a => ({...a, type: 'appointment'})));
+                }
+                
+                if (filterType === 'all' || filterType === 'documents') {
+                    results.push(...documents.filter(d => 
+                        d.document_name.toLowerCase().includes(query)
+                    ).map(d => ({...d, type: 'document'})));
+                }
+                
+                if (filterType === 'all' || filterType === 'tasks') {
+                    results.push(...careTasks.filter(t => 
+                        t.task_name.toLowerCase().includes(query)
+                    ).map(t => ({...t, type: 'task'})));
+                }
+                
+                return results;
+            };
+
+            const generateAnalytics = () => {
+                setAnalyticsData({
+                    summary: {
+                        totalMedications: medications.length,
+                        totalAppointments: appointments.length,
+                        totalTasks: careTasks.length,
+                        completedTasks: careTasks.filter(t => t.status === 'completed').length,
+                    },
+                    careCircle: {
+                        totalCaregivers: caregivers.length
+                    }
+                });
+            };
+
+            const exportToJSON = () => {
+                const exportData = {
+                    exportDate: new Date().toISOString(),
+                    user: { name: currentUser.name, role: currentUser.role },
+                    medications, appointments, activities, careTasks
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `salama_export_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportToCSV = (dataType) => {
+                let csvContent = '';
+                let filename = '';
+                
+                switch(dataType) {
+                    case 'medications':
+                        csvContent = 'Medication Name,Dosage,Time,Notes\n';
+                        medications.forEach(m => {
+                            csvContent += `"${m.medication_name}","${m.dosage || ''}","${m.time || ''}","${m.notes || ''}"\n`;
+                        });
+                        filename = 'medications';
+                        break;
+                    case 'appointments':
+                        csvContent = 'Appointment Name,Date/Time,Location\n';
+                        appointments.forEach(a => {
+                            csvContent += `"${a.appointment_name}","${a.appointment_time || ''}","${a.location || ''}"\n`;
+                        });
+                        filename = 'appointments';
+                        break;
+                    case 'tasks':
+                        csvContent = 'Task Name,Description,Priority,Status\n';
+                        careTasks.forEach(t => {
+                            csvContent += `"${t.task_name}","${t.description || ''}","${t.priority}","${t.status}"\n`;
+                        });
+                        filename = 'tasks';
+                        break;
+                }
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `salama_${filename}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+// ===== TIMELINE & NOTIFICATION FUNCTIONS =====
+            const addToTimeline = (type, title, description, icon, priority = 'normal', completed = false) => {
+                const event = {
+                    id: `${type}-${Date.now()}`,
+                    type, title, description, icon, priority, completed,
+                    timestamp: new Date().toISOString(),
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+                setTimelineEvents(prev => [event, ...prev]);
+                const today = new Date().toDateString();
+                if (new Date(event.timestamp).toDateString() === today) {
+                    setTodaysEvents(prev => [event, ...prev]);
+                }
+            };
+
+            const loadTimelineEvents = () => {
+                const events = [];
+                
+                medications.forEach(med => {
+                    const taken = medicationsTaken[med.id];
+                    events.push({
+                        id: `med-${med.id}`,
+                        type: taken ? 'medication_taken' : 'medication_pending',
+                        title: med.medication_name,
+                        description: med.dosage || '',
+                        time: med.time,
+                        icon: '💊',
+                        priority: 'normal',
+                        completed: taken,
+                        timestamp: new Date().toISOString()
+                    });
+                });
+                
+                appointments.forEach(appt => {
+                    events.push({
+                        id: `appt-${appt.id}`,
+                        type: 'appointment',
+                        title: appt.appointment_name,
+                        description: appt.location || '',
+                        time: appt.appointment_time ? new Date(appt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                        icon: '📅',
+                        priority: 'normal',
+                        completed: false,
+                        timestamp: appt.appointment_time || new Date().toISOString()
+                    });
+                });
+                
+                careTasks.forEach(task => {
+                    events.push({
+                        id: `task-${task.id}`,
+                        type: task.status === 'completed' ? 'task_completed' : 'task_pending',
+                        title: task.task_name,
+                        description: task.description || '',
+                        time: task.due_date ? new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                        icon: '📋',
+                        priority: task.priority || 'normal',
+                        completed: task.status === 'completed',
+                        timestamp: task.due_date || new Date().toISOString()
+                    });
+                });
+                
+                setTimelineEvents(events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+                const today = new Date().toDateString();
+                setTodaysEvents(events.filter(e => new Date(e.timestamp).toDateString() === today));
+            };
+
+            const createNotification = (userId, type, title, message, priority = 'normal') => {
+                const notification = {
+                    id: Date.now(),
+                    type, title, message, priority,
+                    isRead: false,
+                    timestamp: new Date().toISOString()
+                };
+                setNotifications(prev => [notification, ...prev]);
+                setUnreadNotifications(prev => prev + 1);
+                if (voiceAnnouncements) announce(title + '. ' + message);
+            };
+
+            const loadNotifications = () => {
+                const unread = notifications.filter(n => !n.isRead).length;
+                setUnreadNotifications(unread);
+            };
+
+            const markNotificationRead = (notificationId) => {
+                setNotifications(prev => prev.map(n => 
+                    n.id === notificationId ? {...n, isRead: true} : n
+                ));
+                setUnreadNotifications(prev => Math.max(0, prev - 1));
+            };
+
+            const calculateKeyMetrics = () => {
+                const completedTasks = careTasks.filter(t => t.status === 'completed').length;
+                const totalTasks = careTasks.length;
+                const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                const missedMeds = medications.filter(m => !medicationsTaken[m.id]).length;
+                
+                setKeyMetrics({
+                    tasksCompleted: completedTasks,
+                    checkInsThisWeek: recentCheckIns.length,
+                    missedMedications: missedMeds,
+                    completionRate
+                });
+            };
+
+            const loadRecentMoods = async () => {
+                if (!currentUser) return;
+                try {
+                    const { data } = await supabase
+                        .from('daily_checkins')
+                        .select('mood_emoji')
+                        .eq('user_id', currentUser.id)
+                        .order('created_at', { ascending: false })
+                        .limit(7);
+                    if (data) setRecentMoods(data.map(d => d.mood_emoji));
+                } catch (err) {
+                    console.error('Error loading moods:', err);
+                }
+            };
+
+            const markMedicationTaken = async (medId) => {
+                setMedicationsTaken(prev => ({...prev, [medId]: true}));
+                const med = medications.find(m => m.id === medId);
+                if (med) {
+                    addToTimeline('medication_taken', `${med.medication_name} Taken`, med.dosage || '', '✅', 'normal', true);
+                    createNotification(currentUser.id, 'update', 'Medication Taken', `${med.medication_name} marked as taken`, 'normal');
+                }
+                loadTimelineEvents();
+                calculateKeyMetrics();
+            };
+
+            const completeOnboardingStep = (step) => {
+                if (step === 4) {
+                    setShowOnboarding(false);
+                    localStorage.setItem('salamaOnboardingComplete', 'true');
+                } else {
+                    setOnboardingStep(step + 1);
+                }
+            };
+
+            const skipOnboarding = () => {
+                setShowOnboarding(false);
+                localStorage.setItem('salamaOnboardingComplete', 'true');
+            };
+
+            // ===== AUTHENTICATION FUNCTIONS =====
+            const handleAuth = async () => {
+                if (!authUsername || !authPassword) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+
+                if (isLogin) {
+                    const { data, error } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('username', authUsername)
+                        .eq('password', authPassword)
+                        .single();
+
+                    if (error || !data) {
+                        alert('Invalid credentials');
+                        return;
+                    }
+
+                    setCurrentUser(data);
+                    setIsProfessional(data.role === 'professional' || data.role_type === 'professional');
+                    setShowAuth(false);
+                    
+                    if (data.role === 'professional' || data.role_type === 'professional') {
+                        loadProfessionalProfile(data.id);
+                        setCurrentPage('dashboard');
+                    }
+                } else {
+                    if (!authName) {
+                        alert('Please enter your name');
+                        return;
+                    }
+
+                    const careCircleId = crypto.randomUUID();
+                    
+                    const { data, error } = await supabase
+                        .from('users')
+                        .insert([{
+                            username: authUsername,
+                            password: authPassword,
+                            name: authName,
+                            role: authRole === 'professional' ? 'professional' : authRole,
+                            role_type: authRole,
+                            avatar: authRole === 'care_recipient' ? '👴' : authRole === 'caregiver' ? '👨' : '👨‍⚕️',
+                            care_circle_id: authRole === 'care_recipient' ? careCircleId : null
+                        }])
+                        .select()
+                        .single();
+
+                    if (error) {
+                        alert('Error creating account: ' + error.message);
+                        return;
+                    }
+
+                    setCurrentUser(data);
+                    setIsProfessional(authRole === 'professional');
+                    setShowAuth(false);
+                    
+                    if (authRole === 'professional') {
+                        setShowProfessionalSetup(true);
+                        setCurrentPage('dashboard');
+                    }
+                }
+            };
+
+            const logout = () => {
+                setCurrentUser(null);
+                setShowAuth(true);
+                setIsProfessional(false);
+                setCurrentPage('home');
+                setViewingCareRecipient(null);
+                setAuthUsername('');
+                setAuthPassword('');
+                setAuthName('');
+            };
+
+            const updateProfile = async () => {
+                const { error } = await supabase
+                    .from('users')
+                    .update({ name: editName, avatar: editAvatar })
+                    .eq('id', currentUser.id);
+
+                if (error) {
+                    alert('Error updating profile');
+                    return;
+                }
+
+                setCurrentUser({ ...currentUser, name: editName, avatar: editAvatar });
+                setShowProfileEdit(false);
+            };
+
+            const loadUserData = async (userId) => {
+                try {
+                    const { data: medsData } = await supabase.from('medications').select('*').eq('user_id', userId).order('time', { ascending: true });
+                    if (medsData) setMedications(medsData);
+
+                    const { data: apptsData } = await supabase.from('appointments').select('*').eq('user_id', userId).order('appointment_time', { ascending: true });
+                    if (apptsData) setAppointments(apptsData);
+
+                    const { data: actsData } = await supabase.from('activities').select('*').eq('user_id', userId).order('time', { ascending: true });
+                    if (actsData) setActivities(actsData);
+
+                    const { data: memsData } = await supabase.from('memories').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+                    if (memsData) setMemories(memsData);
+
+                    const { data: docsData } = await supabase.from('documents').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false });
+                    if (docsData) setDocuments(docsData);
+
+                    const { data: recsData } = await supabase.from('audio_recordings').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+                    if (recsData) setThoughtRecordings(recsData);
+
+                    if (currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') {
+                        const { data: cgData } = await supabase.from('care_circle_members').select('caregiver:users!care_circle_members_caregiver_id_fkey(*)').eq('care_recipient_id', userId);
+                        if (cgData) setCaregivers(cgData.map(d => d.caregiver));
+                    }
+
+                    if (currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') {
+                        const { data: recipientsData } = await supabase.from('care_circle_members').select('care_recipient:users!care_circle_members_care_recipient_id_fkey(*)').eq('caregiver_id', userId);
+                        if (recipientsData) setMyCareRecipients(recipientsData.map(d => d.care_recipient));
+                    }
+                } catch (err) {
+                    console.error('Error loading data:', err);
+                }
+            };
+
+            const loadCareTasks = async (userId) => {
+                try {
+                    let query = supabase.from('care_tasks').select('*').order('created_at', { ascending: false });
+
+                    if (currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') {
+                        query = query.eq('assigned_to', userId);
+                    } else {
+                        query = query.eq('care_recipient_id', userId);
+                    }
+
+                    const { data } = await query;
+                    if (data) setCareTasks(data);
+                } catch (err) {
+                    console.error('Error loading tasks:', err);
+                }
+            };
+
+            const addMedication = async (name, dosage, time, notes) => {
+                if (!name) {
+                    alert('Please enter medication name');
+                    return;
+                }
+
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                const { error } = await supabase.from('medications').insert([{
+                    user_id: userId,
+                    medication_name: name,
+                    dosage, time, notes
+                }]);
+
+                if (error) {
+                    alert('Error adding medication');
+                    return;
+                }
+
+                setShowAddMedication(false);
+                loadUserData(userId);
+                loadTimelineEvents();
+                addToTimeline('medication_added', `Added: ${name}`, dosage || '', '💊', 'normal', false);
+            };
+
+            const deleteMedication = async (id) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                await supabase.from('medications').delete().eq('id', id);
+                loadUserData(userId);
+                loadTimelineEvents();
+            };
+
+            const addAppointment = async (name, time, location, notes) => {
+                if (!name) {
+                    alert('Please enter appointment name');
+                    return;
+                }
+
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                const { error } = await supabase.from('appointments').insert([{
+                    user_id: userId,
+                    appointment_name: name,
+                    appointment_time: time,
+                    location, notes
+                }]);
+
+                if (error) {
+                    alert('Error adding appointment');
+                    return;
+                }
+
+                setShowAddAppointment(false);
+                loadUserData(userId);
+                loadTimelineEvents();
+                addToTimeline('appointment_added', `Scheduled: ${name}`, location || '', '📅', 'normal', false);
+            };
+
+            const deleteAppointment = async (id) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                await supabase.from('appointments').delete().eq('id', id);
+                loadUserData(userId);
+                loadTimelineEvents();
+            };
+
+            const addActivity = async (name, time, notes) => {
+                if (!name) {
+                    alert('Please enter activity name');
+                    return;
+                }
+
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                await supabase.from('activities').insert([{
+                    user_id: userId,
+                    activity_name: name,
+                    time, notes,
+                    status: 'pending'
+                }]);
+
+                setShowAddActivity(false);
+                loadUserData(userId);
+                loadTimelineEvents();
+            };
+
+            const deleteActivity = async (id) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                await supabase.from('activities').delete().eq('id', id);
+                loadUserData(userId);
+                loadTimelineEvents();
+            };
+
+            const toggleActivityStatus = async (id, currentStatus) => {
+                const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                await supabase.from('activities').update({ status: newStatus }).eq('id', id);
+
+                loadUserData(userId);
+                
+                if (newStatus === 'completed') {
+                    const activity = activities.find(a => a.id === id);
+                    if (activity) {
+                        addToTimeline('activity_completed', `Completed: ${activity.activity_name}`, '', '✅', 'normal', true);
+                    }
+                }
+                loadTimelineEvents();
+            };
+
+            const uploadMemory = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.size > 50 * 1024 * 1024) {
+                    alert('File too large. Maximum 50MB.');
+                    return;
+                }
+
+                setUploadingFile(true);
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage.from('salama-documents').upload(fileName, file);
+
+                if (uploadError) {
+                    alert('Error uploading file');
+                    setUploadingFile(false);
+                    return;
+                }
+
+                const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+
+                const fileType = file.type.startsWith('image/') ? 'image' : 'video';
+
+                await supabase.from('memories').insert([{
+                    user_id: userId,
+                    file_url: urlData.publicUrl,
+                    file_type: fileType,
+                    title: file.name
+                }]);
+
+                loadUserData(userId);
+                setShowAddMemory(false);
+                setUploadingFile(false);
+                addToTimeline('memory_uploaded', 'New Memory Added', file.name, '📷', 'normal', false);
+            };
+
+            const deleteMemory = async (id, fileUrl) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                const fileName = fileUrl.split('/').pop();
+                await supabase.storage.from('salama-documents').remove([`${userId}/${fileName}`]);
+                await supabase.from('memories').delete().eq('id', id);
+                loadUserData(userId);
+            };
+
+            const uploadDocument = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('File too large. Maximum 10MB.');
+                    return;
+                }
+
+                setUploadingFile(true);
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+                await supabase.storage.from('salama-documents').upload(fileName, file);
+
+                const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+
+                await supabase.from('documents').insert([{
+                    user_id: userId,
+                    file_url: urlData.publicUrl,
+                    document_name: file.name,
+                    document_type: fileExt
+                }]);
+
+                loadUserData(userId);
+                setShowDocumentUpload(false);
+                setUploadingFile(false);
+                addToTimeline('document_uploaded', 'Document Uploaded', file.name, '📄', 'normal', false);
+            };
+
+            const submitDailyCheckIn = async (mood, notes) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                await supabase.from('daily_checkins').insert([{
+                    user_id: userId,
+                    mood_emoji: mood,
+                    notes
+                }]);
+
+                loadRecentMoods();
+                calculateKeyMetrics();
+                addToTimeline('check_in', 'Daily Check-In', `Mood: ${mood}`, '😊', 'normal', true);
+            };
+
+            const loadProfessionalProfile = async (userId) => {
+                try {
+                    const { data } = await supabase.from('professional_profiles').select('*').eq('user_id', userId).single();
+                    if (data) setProfessionalProfile(data);
+
+                    const { data: requestsData } = await supabase.from('care_requests').select('*').eq('status', 'open').order('created_at', { ascending: false });
+                    if (requestsData) setCareRequests(requestsData);
+
+                    const { data: assignmentsData } = await supabase.from('professional_assignments').select('*, care_recipient:users!professional_assignments_care_recipient_id_fkey(*)').eq('professional_id', userId).eq('status', 'active');
+                    if (assignmentsData) setMyAssignments(assignmentsData);
+                } catch (err) {
+                    console.error('Error loading professional profile:', err);
+                }
+            };
+
+            const createProfessionalProfile = async () => {
+                if (!professionalForm.full_name || !professionalForm.license_number) {
+                    alert('Please fill in required fields');
+                    return;
+                }
+
+                const profileData = {
+                    user_id: currentUser.id,
+                    ...professionalForm,
+                    is_verified: false,
+                    availability_status: 'available'
+                };
+
+                if (professionalProfile) {
+                    await supabase.from('professional_profiles').update(profileData).eq('user_id', currentUser.id);
+                } else {
+                    await supabase.from('professional_profiles').insert([profileData]);
+                }
+
+                setShowProfessionalSetup(false);
+                loadProfessionalProfile(currentUser.id);
+            };
+
+            const updateProfessionalAvailability = async (status) => {
+                await supabase.from('professional_profiles').update({ availability_status: status }).eq('user_id', currentUser.id);
+                loadProfessionalProfile(currentUser.id);
+            };
+
+            const createCareRequest = async () => {
+                if (!newCareRequest.care_needs_description) {
+                    alert('Please describe your care needs');
+                    return;
+                }
+
+                await supabase.from('care_requests').insert([{
+                    care_recipient_id: currentUser.id,
+                    ...newCareRequest,
+                    status: 'open'
+                }]);
+
+                setShowCareRequestModal(false);
+                setNewCareRequest({
+                    professional_type: 'nurse',
+                    location: '',
+                    urgency_level: 'medium',
+                    care_needs_description: '',
+                    preferred_languages: [],
+                    start_date: '',
+                    duration_weeks: 4
+                });
+                
+                alert('Care request posted! Professionals will be notified.');
+            };
+
+            const respondToCareRequest = async (requestId, responseType, message) => {
+                await supabase.from('care_request_responses').insert([{
+                    care_request_id: requestId,
+                    professional_id: currentUser.id,
+                    response_type: responseType,
+                    message
+                }]);
+                alert('Response sent!');
+            };
+
+            const createDailyCareLog = async (assignmentId, logData) => {
+                await supabase.from('daily_care_logs').insert([{
+                    professional_assignment_id: assignmentId,
+                    professional_id: currentUser.id,
+                    ...logData
+                }]);
+
+                setShowDailyCareLogModal(false);
+                setSelectedAssignment(null);
+                alert('Care log saved successfully!');
+            };
+
+            const createCareTask = async () => {
+                if (!newTask.task_name) {
+                    alert('Please enter task name');
+                    return;
+                }
+
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+
+                await supabase.from('care_tasks').insert([{
+                    care_recipient_id: userId,
+                    created_by: currentUser.id,
+                    ...newTask,
+                    status: 'pending'
+                }]);
+
+                setShowTaskModal(false);
+                setNewTask({
+                    task_name: '',
+                    description: '',
+                    due_date: '',
+                    priority: 'medium',
+                    assigned_to: null
+                });
+                
+                loadCareTasks(userId);
+                loadTimelineEvents();
+                createNotification(currentUser.id, 'update', 'Task Created', `New task: ${newTask.task_name}`, 'normal');
+            };
+
+            const updateTaskStatus = async (taskId, newStatus) => {
+                await supabase.from('care_tasks').update({ status: newStatus }).eq('id', taskId);
+
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                loadCareTasks(userId);
+                
+                if (newStatus === 'completed') {
+                    const task = careTasks.find(t => t.id === taskId);
+                    if (task) {
+                        addToTimeline('task_completed', `Completed: ${task.task_name}`, task.description || '', '✅', 'normal', true);
+                    }
+                }
+                loadTimelineEvents();
+                calculateKeyMetrics();
+            };
+
+            const startRecording = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const recorder = new MediaRecorder(stream);
+                    const chunks = [];
+
+                    recorder.ondataavailable = (e) => chunks.push(e.data);
+
+                    recorder.onstop = async () => {
+                        const blob = new Blob(chunks, { type: 'audio/webm' });
+                        const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                        const fileName = `${userId}/recording_${Date.now()}.webm`;
+
+                        await supabase.storage.from('salama-documents').upload(fileName, blob);
+
+                        const { data: urlData } = supabase.storage.from('salama-documents').getPublicUrl(fileName);
+
+                        await supabase.from('audio_recordings').insert([{
+                            user_id: userId,
+                            audio_url: urlData.publicUrl,
+                            duration_seconds: recordingDuration,
+                            title: `Recording ${new Date().toLocaleString()}`
+                        }]);
+
+                        loadUserData(userId);
+                        setRecordingDuration(0);
+                        addToTimeline('recording_saved', 'Audio Recording Saved', `${recordingDuration} seconds`, '🎤', 'normal', false);
+                    };
+
+                    recorder.start();
+                    setMediaRecorder(recorder);
+                    setIsRecording(true);
+
+                    const timer = setInterval(() => setRecordingDuration(prev => prev + 1), 1000);
+                    recorder.timer = timer;
+                } catch (err) {
+                    alert('Could not access microphone');
+                }
+            };
+
+            const stopRecording = () => {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    clearInterval(mediaRecorder.timer);
+                    setIsRecording(false);
+                }
+            };
+
+            const deleteRecording = async (id, audioUrl) => {
+                const userId = viewingCareRecipient ? viewingCareRecipient.id : currentUser.id;
+                const fileName = audioUrl.split('/').pop();
+                await supabase.storage.from('salama-documents').remove([`${userId}/${fileName}`]);
+                await supabase.from('audio_recordings').delete().eq('id', id);
+                loadUserData(userId);
+            };
+
+            const sendMessage = async () => {
+                if (!messageInput.trim()) return;
+
+                const newMsg = {
+                    text: messageInput,
+                    sender: 'me',
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+
+                setChatMessages([...chatMessages, newMsg]);
+
+                if (chatWith && chatWith.id) {
+                    await supabase.from('messages').insert([{
+                        sender_id: currentUser.id,
+                        receiver_id: chatWith.id,
+                        message_text: messageInput
+                    }]);
+                }
+
+                setMessageInput('');
+            };
+
+            const sendQuickText = async (text) => {
+                caregivers.forEach(async (cg) => {
+                    await supabase.from('messages').insert([{
+                        sender_id: currentUser.id,
+                        receiver_id: cg.id,
+                        message_text: text
+                    }]);
+                });
+                alert('Quick text sent to all caregivers!');
+            };
+
+            const askSalama = async (question) => {
+                if (!question.trim()) return;
+
+                setProtectionInput('');
+                
+                const userMsg = {
+                    text: question,
+                    sender: 'me',
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+
+                setProtectionMessages([...protectionMessages, userMsg]);
+                setIsAIThinking(true);
+
+                setTimeout(() => {
+                    const responses = {
+                        "i'm feeling lonely": "I understand feeling lonely can be difficult. Would you like me to notify one of your caregivers?",
+                        "tell me a joke": "Why don't scientists trust atoms? Because they make up everything! 😄",
+                        "suspicious phone call": "Please don't share any personal information. Would you like me to alert your caregivers?",
+                        "default": "I'm here to help! I can assist with safety concerns, answer questions, or connect you with your caregivers."
+                    };
+
+                    const response = responses[question.toLowerCase()] || responses["default"];
+
+                    const aiMsg = {
+                        text: response,
+                        sender: 'salama',
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    };
+
+                    setProtectionMessages(prev => [...prev, aiMsg]);
+                    setIsAIThinking(false);
+                }, 1500);
+            };
+
+            const generateQRCode = async (careCircleId) => {
+                const qrContainer = document.getElementById('qr-code-display');
+                if (qrContainer) {
+                    qrContainer.innerHTML = '';
+                    await QRCode.toCanvas(qrContainer, careCircleId, {
+                        width: 300,
+                        margin: 2,
+                        color: { dark: '#000000', light: '#FFFFFF' }
+                    });
+                }
+            };
+
+            const startQRScanner = () => {
+                setShowQRScanner(true);
+                setTimeout(() => {
+                    const html5QrCode = new Html5Qrcode("qr-reader");
+                    html5QrCode.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: 250 },
+                        async (decodedText) => {
+                            html5QrCode.stop();
+                            await joinCareCircle(decodedText);
+                        }
+                    ).catch(err => console.error('QR Scanner error:', err));
+                }, 500);
+            };
+
+            const joinCareCircle = async (careCircleId) => {
+                const { data: recipientData } = await supabase.from('users').select('id, name').eq('care_circle_id', careCircleId).single();
+
+                if (!recipientData) {
+                    alert('Invalid QR code');
+                    return;
+                }
+
+                await supabase.from('care_circle_members').insert([{
+                    care_circle_id: careCircleId,
+                    care_recipient_id: recipientData.id,
+                    caregiver_id: currentUser.id,
+                    relationship: 'family'
+                }]);
+
+                alert(`You've joined ${recipientData.name}'s care circle!`);
+                setShowQRScanner(false);
+                loadUserData(currentUser.id);
+            };
+
+            const viewCareRecipientData = async (recipient) => {
+                setViewingCareRecipient(recipient);
+                await loadUserData(recipient.id);
+                await loadCareTasks(recipient.id);
+            };
+
+            const updateCaregiverPermission = async (caregiverId, permission, value) => {
+                const existing = caregiverPermissions[caregiverId];
+
+                if (existing) {
+                    await supabase.from('caregiver_permissions').update({ [permission]: value }).eq('care_recipient_id', currentUser.id).eq('caregiver_id', caregiverId);
+                } else {
+                    await supabase.from('caregiver_permissions').insert([{
+                        care_recipient_id: currentUser.id,
+                        caregiver_id: caregiverId,
+                        [permission]: value
+                    }]);
+                }
+
+                const { data: permsData } = await supabase.from('caregiver_permissions').select('*').eq('care_recipient_id', currentUser.id);
+
+                if (permsData) {
+                    const permsMap = {};
+                    permsData.forEach(p => { permsMap[p.caregiver_id] = p; });
+                    setCaregiverPermissions(permsMap);
+                }
+            };
+
+            // ===== USEEFFECTS =====
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            useEffect(() => {
+                if (currentUser) {
+                    loadUserData(currentUser.id);
+                    loadCareTasks(currentUser.id);
+                    loadNotifications();
+                    loadTimelineEvents();
+                    calculateKeyMetrics();
+                    loadRecentMoods();
+                    
+                    const onboardingComplete = localStorage.getItem('salamaOnboardingComplete');
+                    if (!onboardingComplete && (currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient')) {
+                        setShowOnboarding(true);
+                    }
+                }
+            }, [currentUser]);
+
+            useEffect(() => {
+                loadTimelineEvents();
+                calculateKeyMetrics();
+            }, [medications, appointments, careTasks, medicationsTaken]);
+
+            useEffect(() => {
+                const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+                return () => clearTimeout(timer);
+            }, [searchQuery]);
+
+            useEffect(() => {
+                const root = document.documentElement;
+                switch(fontSize) {
+                    case 'small': root.style.fontSize = '14px'; break;
+                    case 'large': root.style.fontSize = '18px'; break;
+                    case 'xlarge': root.style.fontSize = '22px'; break;
+                    default: root.style.fontSize = '16px';
+                }
+                if (highContrast) {
+                    root.classList.add('high-contrast');
+                } else {
+                    root.classList.remove('high-contrast');
+                }
+            }, [fontSize, highContrast]);
+
+            // ===== RENDER FUNCTIONS =====
+            const renderNavBar = () => {
+                if (showAuth) return null;
+                
+                if (isProfessional) {
+                    return (
+                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 flex justify-around py-3 z-40">
+                            <button onClick={() => setCurrentPage('dashboard')} className={`flex flex-col items-center ${currentPage === 'dashboard' ? 'text-teal-600' : 'text-gray-600'}`}>
+                                <Home className="w-6 h-6" />
+                                <span className="text-xs mt-1">Dashboard</span>
+                            </button>
+                            <button onClick={() => setCurrentPage('requests')} className={`flex flex-col items-center ${currentPage === 'requests' ? 'text-teal-600' : 'text-gray-600'}`}>
+                                <FileText className="w-6 h-6" />
+                                <span className="text-xs mt-1">Requests</span>
+                            </button>
+                            <button onClick={() => setCurrentPage('assignments')} className={`flex flex-col items-center ${currentPage === 'assignments' ? 'text-teal-600' : 'text-gray-600'}`}>
+                                <Users className="w-6 h-6" />
+                                <span className="text-xs mt-1">Cases</span>
+                            </button>
+                            <button onClick={() => setCurrentPage('profile')} className={`flex flex-col items-center ${currentPage === 'profile' ? 'text-teal-600' : 'text-gray-600'}`}>
+                                <User className="w-6 h-6" />
+                                <span className="text-xs mt-1">Profile</span>
+                            </button>
+                        </div>
+                    );
+                }
+                
+                return (
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 flex justify-around py-3 z-40">
+                        <button onClick={() => setCurrentPage('home')} className={`flex flex-col items-center ${currentPage === 'home' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <Home className="w-6 h-6" />
+                            <span className="text-xs mt-1">Home</span>
+                        </button>
+                        <button onClick={() => setCurrentPage('timeline')} className={`flex flex-col items-center relative ${currentPage === 'timeline' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <Clock className="w-6 h-6" />
+                            <span className="text-xs mt-1">Timeline</span>
+                            {todaysEvents.length > 0 && (<span className="notification-badge">{todaysEvents.length}</span>)}
+                        </button>
+                        <button onClick={() => setCurrentPage('checkin')} className={`flex flex-col items-center ${currentPage === 'checkin' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <Heart className="w-6 h-6" />
+                            <span className="text-xs mt-1">Check-In</span>
+                        </button>
+                        <button onClick={() => setCurrentPage('carenotes')} className={`flex flex-col items-center ${currentPage === 'carenotes' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <FileText className="w-6 h-6" />
+                            <span className="text-xs mt-1">Notes</span>
+                        </button>
+                        <button onClick={() => setCurrentPage('safety')} className={`flex flex-col items-center ${currentPage === 'safety' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <Shield className="w-6 h-6" />
+                            <span className="text-xs mt-1">Safety</span>
+                        </button>
+                        <button onClick={() => setCurrentPage('carecircle')} className={`flex flex-col items-center ${currentPage === 'carecircle' ? 'text-teal-600' : 'text-gray-600'}`}>
+                            <Users className="w-6 h-6" />
+                            <span className="text-xs mt-1">Circle</span>
+                        </button>
+                    </div>
+                );
+            };
+
+            const renderHeader = (title) => {
+                return (
+                    <div className="flex justify-between items-center mb-8">
+                        <button onClick={() => setShowSidebar(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center">
+                            <User className="w-8 h-8 text-white" />
+                        </button>
+                        <h1 className="text-4xl font-serif text-white">{title}</h1>
+                        <button onClick={() => setShowNotifications(true)} className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center relative">
+                            <Bell className="w-8 h-8 text-white" />
+                            {unreadNotifications > 0 && (<span className="notification-badge">{unreadNotifications}</span>)}
+                        </button>
+                    </div>
+                );
+            };
+if (showAuth) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 flex items-center justify-center p-6">
+                        <div className="bg-white rounded-3xl p-8 w-full max-w-md">
+                            <h1 className="text-5xl font-serif text-center mb-8 text-teal-700">Salama</h1>
+                            
+                            <div className="mb-6">
+                                <div className="flex gap-2 mb-4">
+                                    <button onClick={() => setIsLogin(true)} className={`flex-1 py-3 rounded-lg font-semibold ${isLogin ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Login</button>
+                                    <button onClick={() => setIsLogin(false)} className={`flex-1 py-3 rounded-lg font-semibold ${!isLogin ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Sign Up</button>
+                                </div>
+                                
+                                {!isLogin && (
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-semibold mb-2">I am a:</label>
+                                        <select value={authRole} onChange={(e) => setAuthRole(e.target.value)} className="w-full p-3 border-2 border-gray-300 rounded-lg">
+                                            <option value="care_recipient">Care Recipient</option>
+                                            <option value="caregiver">Family Caregiver</option>
+                                            <option value="professional">Professional Caregiver</option>
+                                        </select>
+                                    </div>
+                                )}
+                                
+                                {!isLogin && (<input type="text" placeholder="Full Name" value={authName} onChange={(e) => setAuthName(e.target.value)} className="w-full p-4 border-2 border-gray-300 rounded-lg mb-4 text-lg" />)}
+                                
+                                <input type="text" placeholder="Username" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} className="w-full p-4 border-2 border-gray-300 rounded-lg mb-4 text-lg" />
+                                
+                                <div className="relative">
+                                    <input type={showPassword ? "text" : "password"} placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full p-4 border-2 border-gray-300 rounded-lg mb-4 text-lg pr-12" />
+                                    <button onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-gray-600">{showPassword ? '👁️' : '👁️‍🗨️'}</button>
+                                </div>
+                                
+                                <button onClick={handleAuth} className="w-full bg-teal-600 text-white py-4 rounded-lg text-lg font-semibold hover:bg-teal-700">{isLogin ? 'Login' : 'Create Account'}</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-b from-teal-600 to-blue-300 pb-24">
+                    {error && (
+                        <div className="fixed top-4 left-4 right-4 z-50 animate-slideUp">
+                            <div className="bg-red-500 text-white p-4 rounded-lg shadow-2xl flex items-start gap-3">
+                                <AlertCircle className="w-6 h-6 mt-0.5" />
+                                <div className="flex-1">
+                                    <p className="font-semibold">Error</p>
+                                    <p className="text-sm">{error}</p>
+                                </div>
+                                <button onClick={() => setError(null)} className="text-white text-xl">✕</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {isLoading && (
+                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                            <div className="bg-white rounded-3xl p-8 flex flex-col items-center">
+                                <div className="w-16 h-16 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="text-lg font-semibold text-black">Loading...</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== SIDEBAR ===== */}
+                    {showSidebar && (
+                        <div className="fixed inset-0 bg-black/50 z-50 flex">
+                            <div className="bg-white w-80 h-full p-6 overflow-y-auto">
+                                <button onClick={() => setShowSidebar(false)} className="text-2xl mb-6">✕</button>
+                                
+                                <div className="text-center mb-8">
+                                    <div className="w-24 h-24 bg-teal-500 rounded-full mx-auto mb-4 flex items-center justify-center text-5xl">{currentUser.avatar}</div>
+                                    <h2 className="text-2xl font-serif text-black">{currentUser.name}</h2>
+                                    <p className="text-gray-600 capitalize">{currentUser.role_type || currentUser.role}</p>
+                                    
+                                    {viewingCareRecipient && (
+                                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                            <p className="text-sm text-gray-600">Viewing:</p>
+                                            <p className="font-semibold text-black">{viewingCareRecipient.name}</p>
+                                            <button onClick={() => { setViewingCareRecipient(null); loadUserData(currentUser.id); setShowSidebar(false); }} className="text-sm text-blue-600 mt-2">Back to my view</button>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    <button onClick={() => { setShowProfileEdit(true); setEditName(currentUser.name); setEditAvatar(currentUser.avatar); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">👤 Edit Profile</button>
+                                    <button onClick={() => { setShowSettings(true); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">⚙️ Settings</button>
+                                    {isProfessional && (<button onClick={() => { setShowProfessionalSetup(true); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">👨‍⚕️ Professional Settings</button>)}
+                                    <button onClick={() => { setShowSearch(true); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">🔍 Search</button>
+                                    <button onClick={() => { setShowExportOptions(true); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">📦 Export Data</button>
+                                    <button onClick={() => { setShowAccessibilitySettings(true); setShowSidebar(false); }} className="w-full text-left p-4 bg-gray-100 rounded-lg hover:bg-gray-200">♿ Accessibility</button>
+                                    <button onClick={logout} className="w-full text-left p-4 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">🚪 Logout</button>
+                                </div>
+                            </div>
+                            <div className="flex-1" onClick={() => setShowSidebar(false)}></div>
+                        </div>
+                    )}
+
+                    {/* ===== NOTIFICATIONS ===== */}
+                    {showNotifications && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-6 overflow-y-auto">
+                            <div className="bg-white rounded-3xl p-6 max-w-md w-full mt-20">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-serif text-black">Notifications</h2>
+                                    <button onClick={() => setShowNotifications(false)} className="text-2xl">✕</button>
+                                </div>
+                                
+                                {notifications.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                        <p className="text-gray-500">No notifications</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {notifications.map(notif => (
+                                            <div key={notif.id} onClick={() => markNotificationRead(notif.id)} className={`p-4 rounded-lg cursor-pointer ${notif.isRead ? 'bg-gray-50' : 'bg-blue-50 border-2 border-blue-200'}`}>
+                                                <p className="font-semibold text-black">{notif.title}</p>
+                                                <p className="text-sm text-gray-600">{notif.message}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== SEARCH MODAL ===== */}
+                    {showSearch && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+                            <div className="p-6 bg-gradient-to-b from-teal-600 to-blue-300">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <button onClick={() => setShowSearch(false)} className="text-white text-3xl">←</button>
+                                    <h2 className="text-2xl font-serif text-white">Search</h2>
+                                </div>
+                                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-full p-4 rounded-lg text-lg" autoFocus />
+                                <div className="flex gap-2 mt-4 overflow-x-auto">
+                                    {['all', 'medications', 'appointments', 'documents', 'tasks'].map(type => (
+                                        <button key={type} onClick={() => setFilterType(type)} className={`px-4 py-2 rounded-full text-sm whitespace-nowrap ${filterType === type ? 'bg-white text-teal-700' : 'bg-white/20 text-white'}`}>{type.charAt(0).toUpperCase() + type.slice(1)}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 bg-white">
+                                {filterData().length === 0 ? (
+                                    <div className="text-center py-12"><p className="text-gray-500 text-xl">No results found</p></div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {filterData().map((result, idx) => (
+                                            <div key={idx} className="p-4 bg-gray-50 rounded-lg">
+                                                <p className="font-semibold text-black">{result.medication_name || result.appointment_name || result.document_name || result.task_name}</p>
+                                                <span className="text-xs bg-gray-200 px-2 py-1 rounded">{result.type}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== EXPORT OPTIONS ===== */}
+                    {showExportOptions && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-lg w-full">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-3xl font-serif text-black">Export Data</h2>
+                                    <button onClick={() => setShowExportOptions(false)} className="text-2xl">✕</button>
+                                </div>
+                                <div className="space-y-3">
+                                    <button onClick={exportToJSON} className="w-full bg-teal-600 text-white py-3 rounded-lg">📦 Complete Data (JSON)</button>
+                                    <button onClick={() => exportToCSV('medications')} className="w-full bg-blue-500 text-white py-3 rounded-lg">💊 Medications (CSV)</button>
+                                    <button onClick={() => exportToCSV('appointments')} className="w-full bg-purple-500 text-white py-3 rounded-lg">📅 Appointments (CSV)</button>
+                                    <button onClick={() => exportToCSV('tasks')} className="w-full bg-orange-500 text-white py-3 rounded-lg">📋 Tasks (CSV)</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== ACCESSIBILITY ===== */}
+                    {showAccessibilitySettings && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-lg w-full">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-3xl font-serif text-black">Accessibility</h2>
+                                    <button onClick={() => setShowAccessibilitySettings(false)} className="text-2xl">✕</button>
+                                </div>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-lg font-semibold mb-3">Text Size</label>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {['small', 'normal', 'large', 'xlarge'].map((size, idx) => (
+                                                <button key={size} onClick={() => setFontSize(size)} className={`py-2 rounded-lg font-semibold ${fontSize === size ? 'bg-teal-600 text-white' : 'bg-gray-200 text-black'}`} style={{ fontSize: ['12px', '16px', '20px', '24px'][idx] }}>A</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <p className="font-semibold">High Contrast Mode</p>
+                                            <p className="text-sm text-gray-600">Easier to read</p>
+                                        </div>
+                                        <button onClick={() => setHighContrast(!highContrast)} className={`w-14 h-7 rounded-full ${highContrast ? 'bg-teal-600' : 'bg-gray-400'}`}>
+                                            <div className={`w-6 h-6 bg-white rounded-full transition-transform ${highContrast ? 'translate-x-7' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </label>
+                                    <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <p className="font-semibold">Voice Announcements</p>
+                                            <p className="text-sm text-gray-600">Speak notifications</p>
+                                        </div>
+                                        <button onClick={() => setVoiceAnnouncements(!voiceAnnouncements)} className={`w-14 h-7 rounded-full ${voiceAnnouncements ? 'bg-teal-600' : 'bg-gray-400'}`}>
+                                            <div className={`w-6 h-6 bg-white rounded-full transition-transform ${voiceAnnouncements ? 'translate-x-7' : 'translate-x-0.5'}`} />
+                                        </button>
+                                    </label>
+                                </div>
+                                <button onClick={() => setShowAccessibilitySettings(false)} className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold mt-6">Done</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== QR CODE ===== */}
+                    {showQRCode && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                                <h2 className="text-3xl font-serif text-center mb-6">My Care Circle QR</h2>
+                                <div id="qr-code-display" className="bg-gray-100 rounded-lg p-8 mb-6 flex items-center justify-center min-h-[300px]"></div>
+                                <p className="text-center text-gray-600 mb-6">Caregivers scan this to join</p>
+                                <button onClick={() => setShowQRCode(false)} className="w-full bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Close</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== QR SCANNER ===== */}
+                    {showQRScanner && (
+                        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+                            <div className="p-6 flex items-center justify-between bg-black/50">
+                                <h2 className="text-2xl font-serif text-white">Scan QR Code</h2>
+                                <button onClick={() => { setShowQRScanner(false); window.location.reload(); }} className="text-white text-3xl">✕</button>
+                            </div>
+                            <div id="qr-reader" className="flex-1"></div>
+                        </div>
+                    )}
+
+                    {/* ===== PROFILE EDIT ===== */}
+                    {showProfileEdit && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                                <h2 className="text-3xl font-serif text-center mb-6">Edit Profile</h2>
+                                <div className="mb-4">
+                                    <label className="block text-lg font-semibold mb-2">Name</label>
+                                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                </div>
+                                <div className="mb-6">
+                                    <label className="block text-lg font-semibold mb-2">Avatar</label>
+                                    <div className="grid grid-cols-5 gap-3">
+                                        {['👴', '👵', '👨', '👩', '🧑', '👶', '🧓', '👨‍⚕️', '👩‍⚕️', '🧑‍⚕️'].map(emoji => (
+                                            <button key={emoji} onClick={() => setEditAvatar(emoji)} className={`text-4xl p-3 rounded-lg ${editAvatar === emoji ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-100'}`}>{emoji}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <button onClick={() => setShowProfileEdit(false)} className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Cancel</button>
+                                    <button onClick={updateProfile} className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== SETTINGS ===== */}
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                            <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                                <h2 className="text-3xl font-serif text-center mb-6">Settings</h2>
+                                <h3 className="text-2xl font-serif text-black mb-4">Caregiver Permissions</h3>
+                                {caregivers.length === 0 ? (
+                                    <p className="text-gray-500 text-center py-8">No caregivers yet</p>
+                                ) : (
+                                    caregivers.map((cg) => {
+                                        const perms = caregiverPermissions[cg.id] || {};
+                                        return (
+                                            <div key={cg.id} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                                                <h4 className="text-xl font-semibold text-black mb-4">{cg.name}</h4>
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center justify-between">
+                                                        <span>View documents</span>
+                                                        <input type="checkbox" checked={perms.can_view_documents || false} onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_documents', e.target.checked)} className="w-6 h-6" />
+                                                    </label>
+                                                    <label className="flex items-center justify-between">
+                                                        <span>View medications</span>
+                                                        <input type="checkbox" checked={perms.can_view_medications || false} onChange={(e) => updateCaregiverPermission(cg.id, 'can_view_medications', e.target.checked)} className="w-6 h-6" />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                                <button onClick={() => setShowSettings(false)} className="w-full bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold mt-6">Close</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== ADD MEDICATION ===== */}
+                    {showAddMedication && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                                <h2 className="text-3xl font-serif text-center mb-6">Add Medication</h2>
+                                <div className="space-y-4">
+                                    <input type="text" placeholder="Medication Name *" id="med-name" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="text" placeholder="Dosage" id="med-dosage" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="time" id="med-time" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <textarea placeholder="Notes" id="med-notes" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-24" />
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => setShowAddMedication(false)} className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Cancel</button>
+                                    <button onClick={() => {
+                                        addMedication(
+                                            document.getElementById('med-name').value,
+                                            document.getElementById('med-dosage').value,
+                                            document.getElementById('med-time').value,
+                                            document.getElementById('med-notes').value
+                                        );
+                                    }} className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== ADD APPOINTMENT ===== */}
+                    {showAddAppointment && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                                <h2 className="text-3xl font-serif text-center mb-6">Add Appointment</h2>
+                                <div className="space-y-4">
+                                    <input type="text" placeholder="Appointment Name *" id="appt-name" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="datetime-local" id="appt-time" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="text" placeholder="Location" id="appt-location" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <textarea placeholder="Notes" id="appt-notes" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-24" />
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => setShowAddAppointment(false)} className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Cancel</button>
+                                    <button onClick={() => {
+                                        addAppointment(
+                                            document.getElementById('appt-name').value,
+                                            document.getElementById('appt-time').value,
+                                            document.getElementById('appt-location').value,
+                                            document.getElementById('appt-notes').value
+                                        );
+                                    }} className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== ADD ACTIVITY ===== */}
+                    {showAddActivity && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+                                <h2 className="text-3xl font-serif text-center mb-6">Add Activity</h2>
+                                <div className="space-y-4">
+                                    <input type="text" placeholder="Activity Name *" id="act-name" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="time" id="act-time" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <textarea placeholder="Notes" id="act-notes" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-24" />
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => setShowAddActivity(false)} className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Cancel</button>
+                                    <button onClick={() => {
+                                        addActivity(
+                                            document.getElementById('act-name').value,
+                                            document.getElementById('act-time').value,
+                                            document.getElementById('act-notes').value
+                                        );
+                                    }} className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== ONBOARDING ===== */}
+                    {showOnboarding && (
+                        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6">
+                            <div className="bg-white rounded-3xl p-8 max-w-2xl w-full">
+                                {onboardingStep === 0 && (
+                                    <div className="text-center">
+                                        <h2 className="text-4xl font-serif mb-4">Welcome to Salama! 🌟</h2>
+                                        <p className="text-xl mb-8">Your complete elder care companion</p>
+                                        <button onClick={() => completeOnboardingStep(0)} className="bg-teal-600 text-white px-8 py-4 rounded-lg text-xl font-semibold">Get Started</button>
+                                        <button onClick={skipOnboarding} className="block mx-auto mt-4 text-gray-500">Skip Tutorial</button>
+                                    </div>
+                                )}
+                                {onboardingStep === 1 && (
+                                    <div>
+                                        <h2 className="text-3xl font-serif mb-4">📅 Stay Organized</h2>
+                                        <p className="text-lg mb-6">Track medications, appointments, and daily activities all in one place.</p>
+                                        <button onClick={() => completeOnboardingStep(1)} className="bg-teal-600 text-white px-8 py-3 rounded-lg">Next</button>
+                                    </div>
+                                )}
+                                {onboardingStep === 2 && (
+                                    <div>
+                                        <h2 className="text-3xl font-serif mb-4">👨‍👩‍👧 Care Circle</h2>
+                                        <p className="text-lg mb-6">Connect with family caregivers and share important information securely.</p>
+                                        <button onClick={() => completeOnboardingStep(2)} className="bg-teal-600 text-white px-8 py-3 rounded-lg">Next</button>
+                                    </div>
+                                )}
+                                {onboardingStep === 3 && (
+                                    <div>
+                                        <h2 className="text-3xl font-serif mb-4">🛡️ Safety First</h2>
+                                        <p className="text-lg mb-6">SOS button, AI companion, and smart monitoring to keep you safe.</p>
+                                        <button onClick={() => completeOnboardingStep(3)} className="bg-teal-600 text-white px-8 py-3 rounded-lg">Next</button>
+                                    </div>
+                                )}
+                                {onboardingStep === 4 && (
+                                    <div className="text-center">
+                                        <h2 className="text-3xl font-serif mb-4">You're All Set! 🎉</h2>
+                                        <p className="text-lg mb-6">Start exploring Salama and enjoy peace of mind.</p>
+                                        <button onClick={() => completeOnboardingStep(4)} className="bg-teal-600 text-white px-8 py-4 rounded-lg text-xl font-semibold">Start Using Salama</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== PROFESSIONAL SETUP ===== */}
+                    {showProfessionalSetup && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6 overflow-y-auto">
+                            <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+                                <h2 className="text-3xl font-serif text-center mb-6">Professional Profile Setup</h2>
+                                <div className="space-y-4">
+                                    <input type="text" placeholder="Full Name *" value={professionalForm.full_name} onChange={(e) => setProfessionalForm({...professionalForm, full_name: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <select value={professionalForm.professional_type} onChange={(e) => setProfessionalForm({...professionalForm, professional_type: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg">
+                                        {professionalTypes.map(pt => (<option key={pt.value} value={pt.value}>{pt.label}</option>))}
+                                    </select>
+                                    <input type="text" placeholder="License Number *" value={professionalForm.license_number} onChange={(e) => setProfessionalForm({...professionalForm, license_number: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="number" placeholder="Years Experience" value={professionalForm.years_experience} onChange={(e) => setProfessionalForm({...professionalForm, years_experience: parseInt(e.target.value)})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="text" placeholder="City" value={professionalForm.city} onChange={(e) => setProfessionalForm({...professionalForm, city: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <input type="text" placeholder="State" value={professionalForm.state} onChange={(e) => setProfessionalForm({...professionalForm, state: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                    <textarea placeholder="Bio" value={professionalForm.bio} onChange={(e) => setProfessionalForm({...professionalForm, bio: e.target.value})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg h-32" />
+                                    <input type="number" placeholder="Hourly Rate ($)" value={professionalForm.hourly_rate} onChange={(e) => setProfessionalForm({...professionalForm, hourly_rate: parseFloat(e.target.value)})} className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg" />
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => setShowProfessionalSetup(false)} className="flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-semibold">Cancel</button>
+                                    <button onClick={createProfessionalProfile} className="flex-1 bg-teal-600 text-white py-3 rounded-lg text-lg font-semibold">Save Profile</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ===== MAIN PAGES ===== */}
+                    <div className="p-6">
+                        {currentPage === 'home' && (
+                            <div>
+                                {renderHeader('Home')}
+                                
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-2xl font-serif text-black">Today</h2>
+                                        <p className="text-xl text-black">{currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                    </div>
+                                    <p className="text-5xl font-bold text-black">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📊 Today's Summary</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-teal-50 rounded-lg">
+                                            <p className="text-3xl font-bold text-teal-700">{medications.filter(m => medicationsTaken[m.id]).length}/{medications.length}</p>
+                                            <p className="text-sm text-gray-600">Meds Taken</p>
+                                        </div>
+                                        <div className="p-4 bg-blue-50 rounded-lg">
+                                            <p className="text-3xl font-bold text-blue-700">{appointments.length}</p>
+                                            <p className="text-sm text-gray-600">Appointments</p>
+                                        </div>
+                                        <div className="p-4 bg-purple-50 rounded-lg">
+                                            <p className="text-3xl font-bold text-purple-700">{careTasks.filter(t => t.status === 'completed').length}/{careTasks.length}</p>
+                                            <p className="text-sm text-gray-600">Tasks Done</p>
+                                        </div>
+                                        <div className="p-4 bg-green-50 rounded-lg">
+                                            <p className="text-3xl font-bold text-green-700">{caregivers.length}</p>
+                                            <p className="text-sm text-gray-600">Caregivers</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">💊 Medications Today</h3>
+                                    {medications.length === 0 ? (
+                                        <p className="text-gray-500">No medications scheduled</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {medications.map(med => (
+                                                <div key={med.id} className={`p-4 rounded-lg flex justify-between items-center ${medicationsTaken[med.id] ? 'bg-green-50' : 'bg-gray-50'}`}>
+                                                    <div>
+                                                        <p className="font-semibold text-black">{med.medication_name}</p>
+                                                        <p className="text-sm text-gray-600">{med.dosage} • {med.time}</p>
+                                                    </div>
+                                                    {medicationsTaken[med.id] ? (
+                                                        <span className="text-green-600 text-2xl">✅</span>
+                                                    ) : (
+                                                        <button onClick={() => markMedicationTaken(med.id)} className="bg-teal-600 text-white px-4 py-2 rounded-lg">Take</button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button onClick={() => setShowAddMedication(true)} className="w-full mt-4 bg-teal-600 text-white py-3 rounded-lg font-semibold">+ Add Medication</button>
+                                </div>
+
+                                {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && myCareRecipients.length > 0 && (
+                                    <div className="bg-white rounded-3xl p-6 mb-6">
+                                        <h3 className="text-xl font-semibold text-black mb-4">👥 My Care Recipients</h3>
+                                        <div className="space-y-3">
+                                            {myCareRecipients.map(recipient => (
+                                                <button key={recipient.id} onClick={() => viewCareRecipientData(recipient)} className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100">
+                                                    <p className="font-semibold text-black">{recipient.name}</p>
+                                                    <p className="text-sm text-gray-600">Tap to view their data</p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {currentPage === 'timeline' && (
+                            <div>
+                                {renderHeader('Timeline')}
+                                
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📅 Today's Events</h3>
+                                    {todaysEvents.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No events today</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {todaysEvents.map(event => (
+                                                <div key={event.id} className={`p-4 rounded-lg ${event.completed ? 'bg-green-50' : 'bg-gray-50'}`}>
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="text-2xl">{event.icon}</span>
+                                                        <div className="flex-1">
+                                                            <p className="font-semibold text-black">{event.title}</p>
+                                                            <p className="text-sm text-gray-600">{event.description}</p>
+                                                            {event.time && <p className="text-xs text-gray-500 mt-1">{event.time}</p>}
+                                                        </div>
+                                                        {event.completed && <span className="text-green-600 text-xl">✓</span>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📜 All Events</h3>
+                                    {timelineEvents.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No events yet</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {timelineEvents.slice(0, 20).map(event => (
+                                                <div key={event.id} className="p-4 bg-gray-50 rounded-lg">
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="text-2xl">{event.icon}</span>
+                                                        <div className="flex-1">
+                                                            <p className="font-semibold text-black">{event.title}</p>
+                                                            <p className="text-sm text-gray-600">{event.description}</p>
+                                                            <p className="text-xs text-gray-500 mt-1">{new Date(event.timestamp).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'checkin' && (
+                            <div>
+                                {renderHeader('Daily Check-In')}
+                                
+                                <div className="bg-white rounded-3xl p-8">
+                                    <h2 className="text-3xl font-serif text-center mb-8 text-black">How are you feeling today?</h2>
+                                    
+                                    <div className="flex justify-around mb-8">
+                                        {moods.map(mood => (
+                                            <button key={mood.emoji} onClick={() => setSelectedMood(mood.emoji)} className={`flex flex-col items-center p-4 rounded-lg ${selectedMood === mood.emoji ? 'bg-teal-100 border-2 border-teal-600' : 'bg-gray-50'}`}>
+                                                <span className="text-5xl mb-2">{mood.emoji}</span>
+                                                <span className="text-sm text-black">{mood.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <textarea value={checkInNotes} onChange={(e) => setCheckInNotes(e.target.value)} placeholder="Any notes about your day? (optional)" className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg mb-6 h-32" />
+
+                                    <button onClick={() => {
+                                        if (!selectedMood) {
+                                            alert('Please select a mood');
+                                            return;
+                                        }
+                                        submitDailyCheckIn(selectedMood, checkInNotes);
+                                        setSelectedMood(null);
+                                        setCheckInNotes('');
+                                        alert('Check-in submitted!');
+                                    }} className="w-full bg-teal-600 text-white py-4 rounded-lg text-xl font-semibold">Submit Check-In</button>
+
+                                    {recentMoods.length > 0 && (
+                                        <div className="mt-8 pt-8 border-t border-gray-200">
+                                            <h3 className="text-xl font-semibold text-black mb-4">Recent Moods</h3>
+                                            <div className="flex gap-3">
+                                                {recentMoods.slice(0, 7).map((mood, idx) => (
+                                                    <div key={idx} className="flex-1 text-center">
+                                                        <span className="text-3xl">{mood}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'carenotes' && (
+                            <div>
+                                {renderHeader('Care Notes')}
+                                
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📷 Memories</h3>
+                                    {memories.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No memories yet</p>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {memories.map(mem => (
+                                                <div key={mem.id} className="relative">
+                                                    {mem.file_type === 'image' ? (
+                                                        <img src={mem.file_url} alt={mem.title} className="w-full h-40 object-cover rounded-lg" />
+                                                    ) : (
+                                                        <video src={mem.file_url} className="w-full h-40 object-cover rounded-lg" controls />
+                                                    )}
+                                                    <button onClick={() => deleteMemory(mem.id, mem.file_url)} className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full">✕</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <label className="block w-full mt-4 bg-teal-600 text-white py-3 rounded-lg text-center font-semibold cursor-pointer">
+                                        + Add Memory
+                                        <input type="file" accept="image/*,video/*" onChange={uploadMemory} className="hidden" />
+                                    </label>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📄 Documents</h3>
+                                    {documents.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No documents yet</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {documents.map(doc => (
+                                                <div key={doc.id} className="p-4 bg-gray-50 rounded-lg flex justify-between items-center">
+                                                    <div>
+                                                        <p className="font-semibold text-black">{doc.document_name}</p>
+                                                        <p className="text-xs text-gray-500">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <a href={doc.file_url} target="_blank" className="text-blue-600">View</a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <label className="block w-full mt-4 bg-teal-600 text-white py-3 rounded-lg text-center font-semibold cursor-pointer">
+                                        + Upload Document
+                                        <input type="file" onChange={uploadDocument} className="hidden" />
+                                    </label>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">🎤 Voice Recordings</h3>
+                                    {thoughtRecordings.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No recordings yet</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {thoughtRecordings.map(rec => (
+                                                <div key={rec.id} className="p-4 bg-gray-50 rounded-lg">
+                                                    <p className="font-semibold text-black mb-2">{rec.title}</p>
+                                                    <audio src={rec.audio_url} controls className="w-full mb-2" />
+                                                    <button onClick={() => deleteRecording(rec.id, rec.audio_url)} className="text-red-600 text-sm">Delete</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {isRecording ? (
+                                        <div className="mt-4">
+                                            <div className="text-center mb-4">
+                                                <p className="text-2xl font-bold text-red-600">{formatDuration(recordingDuration)}</p>
+                                                <p className="text-sm text-gray-600">Recording...</p>
+                                            </div>
+                                            <button onClick={stopRecording} className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold">⏹ Stop Recording</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={startRecording} className="w-full mt-4 bg-teal-600 text-white py-3 rounded-lg font-semibold">🎤 Start Recording</button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'safety' && (
+                            <div>
+                                {renderHeader('Safety')}
+                                
+                                <div className="bg-white rounded-3xl p-8 mb-6 text-center">
+                                    <h2 className="text-3xl font-serif text-black mb-6">Emergency SOS</h2>
+                                    <button onClick={() => {
+                                        if (confirm('Call emergency services?')) {
+                                            alert('Emergency services would be contacted. (Demo mode)');
+                                            caregivers.forEach(cg => {
+                                                sendMessage();
+                                            });
+                                        }
+                                    }} className="w-48 h-48 bg-red-600 text-white rounded-full mx-auto text-6xl font-bold shadow-2xl hover:bg-red-700 active:scale-95 transition-transform">SOS</button>
+                                    <p className="text-gray-600 mt-6">Press and hold for 3 seconds to activate</p>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">🤖 AI Companion</h3>
+                                    <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                                        {protectionMessages.map((msg, idx) => (
+                                            <div key={idx} className={`p-3 rounded-lg ${msg.sender === 'me' ? 'bg-teal-100 ml-8' : 'bg-gray-100 mr-8'}`}>
+                                                <p className="text-black">{msg.text}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{msg.time}</p>
+                                            </div>
+                                        ))}
+                                        {isAIThinking && (
+                                            <div className="p-3 rounded-lg bg-gray-100 mr-8">
+                                                <p className="text-gray-500">Salama is typing...</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={protectionInput} onChange={(e) => setProtectionInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && askSalama(protectionInput)} placeholder="Ask Salama anything..." className="flex-1 p-3 border-2 border-gray-300 rounded-lg" />
+                                        <button onClick={() => askSalama(protectionInput)} className="bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold">Send</button>
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <button onClick={() => askSalama("I'm feeling lonely")} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">I'm feeling lonely</button>
+                                        <button onClick={() => askSalama("Tell me a joke")} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">Tell me a joke</button>
+                                        <button onClick={() => askSalama("Suspicious phone call")} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">Got suspicious call</button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">📞 Quick Text Caregivers</h3>
+                                    <div className="space-y-2">
+                                        <button onClick={() => sendQuickText("I need help")} className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold">🚨 I need help</button>
+                                        <button onClick={() => sendQuickText("Please call me")} className="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold">📞 Please call me</button>
+                                        <button onClick={() => sendQuickText("I'm okay")} className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold">✅ I'm okay</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'carecircle' && (
+                            <div>
+                                {renderHeader('Care Circle')}
+                                
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">👥 My Caregivers</h3>
+                                    {caregivers.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No caregivers yet. Share your QR code!</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {caregivers.map(cg => (
+                                                <div key={cg.id} className="p-4 bg-gray-50 rounded-lg flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-teal-400 rounded-full flex items-center justify-center text-2xl">{cg.avatar}</div>
+                                                    <div className="flex-1">
+                                                        <p className="font-semibold text-black">{cg.name}</p>
+                                                        <p className="text-sm text-gray-600">{cg.relationship || 'Family'}</p>
+                                                    </div>
+                                                    <button onClick={() => { setChatWith(cg); setChatMessages([]); }} className="text-blue-600">Chat</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {(currentUser.role === 'care_recipient' || currentUser.role_type === 'care_recipient') && (
+                                    <div className="bg-white rounded-3xl p-6">
+                                        <h3 className="text-xl font-semibold text-black mb-4">📱 Share QR Code</h3>
+                                        <p className="text-gray-600 mb-4">Let caregivers scan this to join your care circle</p>
+                                        <button onClick={() => {
+                                            setShowQRCode(true);
+                                            setTimeout(() => generateQRCode(currentUser.care_circle_id), 100);
+                                        }} className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold">Show My QR Code</button>
+                                    </div>
+                                )}
+
+                                {(currentUser.role === 'caregiver' || currentUser.role_type === 'family_caregiver') && (
+                                    <div className="bg-white rounded-3xl p-6">
+                                        <h3 className="text-xl font-semibold text-black mb-4">📷 Scan QR Code</h3>
+                                        <p className="text-gray-600 mb-4">Scan a care recipient's QR code to join their circle</p>
+                                        <button onClick={startQRScanner} className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold">Open Scanner</button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {currentPage === 'dashboard' && isProfessional && (
+                            <div>
+                                {renderHeader('Dashboard')}
+                                
+                                <div className="bg-white rounded-3xl p-6 mb-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">Professional Dashboard</h3>
+                                    {professionalProfile ? (
+                                        <div>
+                                            <p className="text-lg text-black">Welcome, {professionalProfile.full_name}!</p>
+                                            <p className="text-gray-600">{professionalProfile.professional_type}</p>
+                                            <div className="mt-4 flex gap-2">
+                                                <button onClick={() => updateProfessionalAvailability('available')} className="flex-1 bg-green-500 text-white py-2 rounded-lg">Available</button>
+                                                <button onClick={() => updateProfessionalAvailability('busy')} className="flex-1 bg-orange-500 text-white py-2 rounded-lg">Busy</button>
+                                                <button onClick={() => updateProfessionalAvailability('offline')} className="flex-1 bg-gray-500 text-white py-2 rounded-lg">Offline</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-500">Complete your profile to start receiving requests</p>
+                                    )}
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">My Assignments</h3>
+                                    {myAssignments.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No active assignments</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {myAssignments.map(assignment => (
+                                                <div key={assignment.id} className="p-4 bg-gray-50 rounded-lg">
+                                                    <p className="font-semibold text-black">{assignment.care_recipient.name}</p>
+                                                    <p className="text-sm text-gray-600">Started: {new Date(assignment.start_date).toLocaleDateString()}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'requests' && isProfessional && (
+                            <div>
+                                {renderHeader('Care Requests')}
+                                
+                                <div className="bg-white rounded-3xl p-6">
+                                    <h3 className="text-xl font-semibold text-black mb-4">Open Requests</h3>
+                                    {careRequests.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No open requests</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {careRequests.map(request => (
+                                                <div key={request.id} className="p-4 bg-gray-50 rounded-lg">
+                                                    <p className="font-semibold text-black mb-2">{request.professional_type}</p>
+                                                    <p className="text-sm text-gray-600 mb-2">{request.care_needs_description}</p>
+                                                    <p className="text-xs text-gray-500 mb-3">📍 {request.location}</p>
+                                                    <button onClick={() => respondToCareRequest(request.id, 'interested', 'I am interested in this position')} className="w-full bg-teal-600 text-white py-2 rounded-lg">Express Interest</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {renderNavBar()}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SalamaApp />);
+    </script>
+</body>
+</html>
